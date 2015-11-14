@@ -5,20 +5,29 @@ var textTypes =
 };
 
 var dragCanvas = {canvas: null, x: 0, y: 0};
+var ij = 0;
 
 $(function()
 {
     var el = {id: 0, x: 20, y: 20, type: textTypes.STORY, name: "tes1t"};
-    draw(el);
-    el = {id: 1, x: 20, y: 280, type: textTypes.CONDITION, name: "tes2t"};
-    draw(el);
+    el = {id: 1, x: 20, y: 280, type: textTypes.CONDITION, name: "tes2t", successor: el};
     el = {id: 2, x: 420, y: 20, type: textTypes.CONDITION, name: "tes3t"};
-    draw(el);
+    el = $.post("test.php",
+                {
+                    action: "load"
+                },
+                function(data,status){
+//                    data = '{"age":"23", "name" : "abc"}';
+                    var e = JSON.parse(data);
+                    draw(e);
+                });
 });
 
 
 function draw(el)
 {
+    el.id = ij;
+    ++ij;
     $("#main").append("<canvas id='canvas" + el.id + "' style='position: absolute; z-index: " + el.id + ";'></canvas>"); 
     var c = $("#canvas" + el.id)[0];
     //$('#canvas' + el.id).on('click', function(){alert(el.id);});
@@ -58,13 +67,13 @@ function draw(el)
     $(document).mouseup(function(){
         dragCanvas.canvas = null;
     }).mousemove(function(e) {
-            if(dragCanvas.canvas != null)
-            {
-                dragCanvas.canvas.style.left = e.pageX - dragCanvas.x; 
-                dragCanvas.canvas.style.top = e.pageY - dragCanvas.y;
-            }
+        if(dragCanvas.canvas != null)
+        {
+            dragCanvas.canvas.style.left = e.pageX - dragCanvas.x; 
+            dragCanvas.canvas.style.top = e.pageY - dragCanvas.y;
+        }
 
-             })
+    })
     $("#canvas" + el.id)
         .mousedown(function(e) {
             //TODO make this element the topmost element
@@ -75,7 +84,17 @@ function draw(el)
 
     .mouseup(function() {
         dragCanvas.canvas = null;
+    }).dblclick(function()
+    {
+        $.post("test.php",
+                {
+                    action: "load",
+                },
+                function(data,status){
+                    draw(JSON.parse(data));
+                });
     });
+
     ctx.fillStyle="rgba(0, 0, 200, 0)";
     ctx.fill();
 

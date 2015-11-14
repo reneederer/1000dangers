@@ -19,15 +19,10 @@
         </style>
     </head>
     <body>
-        <div id="main" style="background-color: yellow;"></div>
+        <div id="main" style="background-color: white;"></div>
         <div id="papitems">
         </div>
-        <form id="book">
-            <input type="hidden" name="elements[]" />
-        </form>
-        <canvas id="throbble"></canvas>
         <script src="jquery.js"></script>
         <script src="javascript.js"></script>
-
     </body>
 </html>
