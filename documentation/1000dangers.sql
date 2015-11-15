@@ -9,4 +9,8 @@ create table paplink(source_id int, destination_id int, title varchar(2000), for
 insert into team(id, name, password) values(1, "rene", "1234");
 insert into 1000dangersbook(id, team_id, name, creationdate) values(1, 1, "1000 Gefahren", now());
 insert into paptype(id, name) values(1, "Start"), (2, "End"), (3, "Text"), (4, "Condition");
+insert into papelement(id, 1000dangersbook_id, paptype_id, x, y, title, text) values(1, 1, 1, 20, 200, "Start", "Kein Text");
+insert into papelement(id, 1000dangersbook_id, paptype_id, x, y, title, text) values(2, 1, 2, 60, 300, "Titel", "Text");
+insert into papelement(id, 1000dangersbook_id, paptype_id, x, y, title, text) values(3, 1, 4, 180, 500, "Bedingung", "Mein Text");
+
 

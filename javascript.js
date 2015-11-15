@@ -1,31 +1,31 @@
 var textTypes = 
 {
-    CONDITION: 1,
-    STORY: 2
+    START: 1,
+    END: 2,
+    STORY: 3,
+    CONDITION: 4
 };
 
 var dragCanvas = {canvas: null, x: 0, y: 0};
-var ij = 0;
 
 $(function()
 {
-    var el = {id: 0, x: 20, y: 20, type: textTypes.STORY, name: "tes1t"};
-    el = {id: 1, x: 20, y: 280, type: textTypes.CONDITION, name: "tes2t", successor: el};
-    el = {id: 2, x: 420, y: 20, type: textTypes.CONDITION, name: "tes3t"};
-    el = $.post("test.php",
+    $.post("test.php",
+            {
+                action: "load"
+            },
+            function(data,status){
+                var result = JSON.parse(data);
+                for(var el in result)
                 {
-                    action: "load"
-                },
-                function(data,status){
-                    draw(JSON.parse(data));
-                });
+                    draw(result[el]);
+                }
+            });
 });
 
 
 function draw(el)
 {
-    el.id = ij;
-    ++ij;
     $("#main").append("<canvas id='canvas" + el.id + "' style='position: absolute; z-index: " + el.id + ";'></canvas>"); 
     var c = $("#canvas" + el.id)[0];
     //$('#canvas' + el.id).on('click', function(){alert(el.id);});
@@ -47,7 +47,7 @@ function draw(el)
     ctx.font = d.style.font;
     ctx.font = "1em arial";
     fontSize = parseInt(ctx.font);
-    var metrics = ctx.measureText(el.name);
+    var metrics = ctx.measureText(el.title);
     var width = metrics.width*2 + padding.LEFT + padding.RIGHT;
     var height = fontSize + padding.TOP + padding.BOTTOM;
     c.width = width + 10;
@@ -106,12 +106,12 @@ function draw(el)
         ctx.lineTo(el.x + width, el.y + height/2);
         ctx.lineTo(el.x + width/2, el.y + height);
         ctx.lineTo(el.x, el.y + height/2);
-        ctx.fillText(el.name, el.x + metrics.width / 2 + padding.LEFT, el.y + height/2 + fontSize/2 - 0.2*fontSize);
+        ctx.fillText(el.title, el.x + metrics.width / 2 + padding.LEFT, el.y + height/2 + fontSize/2 - 0.2*fontSize);
     }
-    else if(el.type == textTypes.STORY)
+    else if(el.type == textTypes.STORY || el.type == textTypes.END || el.type == textTypes.START)
     {
         ctx.rect(el.x, el.y, width, height);
-        ctx.fillText(el.name, el.x + metrics.width/2 + padding.LEFT, el.y + height - 0.20*fontSize - padding.BOTTOM);
+        ctx.fillText(el.title, el.x + metrics.width/2 + padding.LEFT, el.y + height - 0.20*fontSize - padding.BOTTOM);
     }
     ctx.stroke();
 }

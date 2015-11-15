@@ -10,11 +10,12 @@
                 padding: 10px;
                 background-color: #234244;
             }
-        <style>
+        </style>
     </head>
     <body>
-        <div id="papitems">
-        </div>
+        <div id="papitems"></div>
         <div id="main"></div>
+        <script src="jquery.js"></script>
+        <script src="javascript.js"></script>
     </body>
 </html>
