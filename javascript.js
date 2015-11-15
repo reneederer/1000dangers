@@ -17,9 +17,7 @@ $(function()
                     action: "load"
                 },
                 function(data,status){
-//                    data = '{"age":"23", "name" : "abc"}';
-                    var e = JSON.parse(data);
-                    draw(e);
+                    draw(JSON.parse(data));
                 });
 });
 
