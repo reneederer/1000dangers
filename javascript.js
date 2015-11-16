@@ -11,17 +11,29 @@ var dragCanvas = {canvas: null, x: 0, y: 0};
 $(function()
 {
     $.post("test.php",
+        {
+            action: "load"
+        },
+        function(data,status)
+        {
+            var papElements = JSON.parse(data);
+            for(var el in papElements)
             {
-                action: "load"
+                draw(papElements[el]);
+            }
+        });
+
+    $(window).on('beforeunload', function()
+    {
+        $.post("test.php",
+            {
+                action: "save"
             },
             function(data,status){
-                var result = JSON.parse(data);
-                for(var el in result)
-                {
-                    draw(result[el]);
-                }
             });
+    });
 });
+
 
 
 function draw(el)
@@ -84,13 +96,6 @@ function draw(el)
         dragCanvas.canvas = null;
     }).dblclick(function()
     {
-        $.post("test.php",
-                {
-                    action: "load",
-                },
-                function(data,status){
-                    draw(JSON.parse(data));
-                });
     });
 
     ctx.fillStyle="rgba(0, 0, 200, 0)";
