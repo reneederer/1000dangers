@@ -69,7 +69,11 @@ function distance(x, y, x1, y1, x2, y2) {
 
     var dx = x - xx;
     var dy = y - yy;
-    return Math.sqrt(dx * dx + dy * dy);
+    var ret = {};
+    ret.x = xx;
+    ret.y = yy;
+    ret.d = Math.sqrt(dx * dx + dy * dy);
+    return ret;
 }
 
 
@@ -136,42 +140,29 @@ function createNewPapElement(elementData)
 
     .mouseup(function() {
         dragCanvas.canvas = null;
-    }).mouseover(function(e)
+    }).mousemove(function(e)
         {
-            x = e.pageX - parseInt($(this)[0].style.left);
-            y = e.pageY - parseInt($(this)[0].style.top);
-            if(x < 2*lineWidthBuffer ||
-               x - parseInt($(this)[0].style.width) < 2*lineWidthBuffer ||
-               y < 2*lineWidthBuffer || 
-               y - parseInt($(this)[0].style.height) < 2*lineWidthBuffer)
-
+            var mymin = function(a, b)
             {
-                var ctx = $(this)[0].getContext("2d");
-                ctx.rect(x, y, 3, 3);
-                ctx.stroke();
+                if(Math.min(a.d, b.d) == a.d) return a;
+                else return b;
             }
 
-
-        }).mouseout(function()
-            {
-
-                //$(this)[0].style.backgroundColor = "yellow";
-
-
-            }).dblclick(function(e)
-        {
-            var d = Math.min(distance(e.pageX - parseInt($(this)[0].style.left),
+            var di = 
+                mymin(distance(e.pageX - parseInt($(this)[0].style.left),
                     e.pageY - parseInt($(this)[0].style.top),
                     $(this)[0].rect.a.x, 
                     $(this)[0].rect.a.y, 
                     $(this)[0].rect.b.x, 
                     $(this)[0].rect.b.y),
-                    distance(e.pageX - parseInt($(this)[0].style.left),
+
+                    mymin(distance(e.pageX - parseInt($(this)[0].style.left),
                         e.pageY - parseInt($(this)[0].style.top),
                         $(this)[0].rect.b.x, 
                         $(this)[0].rect.b.y, 
                         $(this)[0].rect.c.x, 
-                        $(this)[0].rect.c.y),distance(e.pageX - parseInt($(this)[0].style.left),
+                        $(this)[0].rect.c.y),
+                    mymin(distance(e.pageX - parseInt($(this)[0].style.left),
                         e.pageY - parseInt($(this)[0].style.top),
                         $(this)[0].rect.c.x, 
                         $(this)[0].rect.c.y, 
@@ -182,14 +173,46 @@ function createNewPapElement(elementData)
                         $(this)[0].rect.d.y, 
                         $(this)[0].rect.a.x, 
                         $(this)[0].rect.a.y)
-                            );
-            alert(d);
-                //alert(e.pageX + ", " + $(this)[0].style.left);
+                    )));
+
+            var pointCtx = $("#point")[0].getContext("2d");;
+        pointCtx.beginPath();
+        pointCtx.arc(3, 3,3,0,2*Math.PI);
+        pointCtx.stroke();
+        $("#point")[0].style.left = di.x + parseInt($(this)[0].style.left) - 3;
+        $("#point")[0].style.top = di.y + parseInt($(this)[0].style.top) - 3;
+           // alert(di.x + ", " + di.y + ", " + di.d);
             
 
 
 
 
+
+        }).mouseover(function(e)
+        {
+            x = e.pageX - parseInt($(this)[0].style.left);
+            y = e.pageY - parseInt($(this)[0].style.top);
+            if(x < 2*lineWidthBuffer ||
+               x - parseInt($(this)[0].style.width) < 2*lineWidthBuffer ||
+               y < 2*lineWidthBuffer || 
+               y - parseInt($(this)[0].style.height) < 2*lineWidthBuffer)
+
+            {
+               // var ctx = $(this)[0].getContext("2d");
+               // ctx.rect(x, y, 3, 3);
+              //  ctx.stroke();
+            }
+
+
+        }).mouseout(function()
+            {
+        $("#point")[0].style.left = -$("#point")[0].width;
+
+                //$(this)[0].style.backgroundColor = "yellow";
+
+
+            }).dblclick(function(e)
+        {
 
 
 
