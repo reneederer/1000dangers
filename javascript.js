@@ -7,6 +7,7 @@ var textTypes =
 };
 
 var dragCanvas = {canvas: null, x: 0, y: 0};
+var dragLine = {startCanvas: null, x:0, y: 0};
 
 $(function()
         {
@@ -46,34 +47,30 @@ function distance(x, y, x1, y1, x2, y2) {
     var C = x2 - x1;
     var D = y2 - y1;
 
-    var dot = A * C + B * D;
+    var dotProduct = A * C + B * D;
     var len_sq = C * C + D * D;
     var param = -1;
     if (len_sq != 0) //in case of 0 length line
-        param = dot / len_sq;
+        param = dotProduct / len_sq;
 
-    var xx, yy;
+    var nearest = {x: 0, y: 0}
 
     if (param < 0) {
-        xx = x1;
-        yy = y1;
+        nearest.x = x1;
+        nearest.y = y1;
     }
     else if (param > 1) {
-        xx = x2;
-        yy = y2;
+        nearest.x = x2;
+        nearest.y = y2;
     }
     else {
-        xx = x1 + param * C;
-        yy = y1 + param * D;
+        nearest.x = x1 + param * C;
+        nearest.y = y1 + param * D;
     }
 
-    var dx = x - xx;
-    var dy = y - yy;
-    var ret = {};
-    ret.x = xx;
-    ret.y = yy;
-    ret.d = Math.sqrt(dx * dx + dy * dy);
-    return ret;
+    var dx = x - nearest.x;
+    var dy = y - nearest.y;
+    return {x: nearest.x, y: nearest.y, d: Math.sqrt(dx * dx + dy * dy)}; 
 }
 
 
@@ -122,24 +119,86 @@ function createNewPapElement(elementData)
 
     $(document).mouseup(function(){
         dragCanvas.canvas = null;
+        var lineCtx = $("#line")[0].getContext("2d");
+        lineCtx.clearRect(0, 0, 1001, 1001);
+        lineCtx.beginPath();
+        dragLine.startCanvas = null;
     }).mousemove(function(e) {
         if(dragCanvas.canvas != null)
         {
             dragCanvas.canvas.style.left = e.pageX - dragCanvas.x; 
             dragCanvas.canvas.style.top = e.pageY - dragCanvas.y;
         }
+        if(dragLine.startCanvas != null)
+        {
+                var lineCtx = $("#line")[0].getContext("2d");
+                lineCtx.clearRect(0, 0,$("#line")[0].width,$("#line")[0].height);
+                lineCtx.beginPath();
+                lineCtx.moveTo(dragLine.x, dragLine.y);
+                lineCtx.lineTo(e.pageX, e.pageY);
+                lineCtx.stroke();
+        }
 
-    })
+    }).mousedown(function()
+    {
+        $("#right")[0].style.display = "none";
+    });
+    $("#mytext").mousedown(function(evt)
+    {
+        evt.stopPropagation();
+    });
     $("#canvas" + elementData.id)
         .mousedown(function(e) {
             //TODO make this element the topmost element
+            var mymin = function(a, b)
+            {
+                if(Math.min(a.d, b.d) == a.d) return a;
+                else return b;
+            }
+
+            var di = mymin(distance(e.pageX - parseInt($(this)[0].style.left),
+                e.pageY - parseInt($(this)[0].style.top),
+                $(this)[0].rect.a.x, 
+                $(this)[0].rect.a.y, 
+                $(this)[0].rect.b.x, 
+                $(this)[0].rect.b.y),
+                mymin(distance(e.pageX - parseInt($(this)[0].style.left),
+                    e.pageY - parseInt($(this)[0].style.top),
+                    $(this)[0].rect.b.x, 
+                    $(this)[0].rect.b.y, 
+                    $(this)[0].rect.c.x, 
+                    $(this)[0].rect.c.y),
+                mymin(distance(e.pageX - parseInt($(this)[0].style.left),
+                    e.pageY - parseInt($(this)[0].style.top),
+                    $(this)[0].rect.c.x, 
+                    $(this)[0].rect.c.y, 
+                    $(this)[0].rect.d.x, 
+                    $(this)[0].rect.d.y),distance(e.pageX - parseInt($(this)[0].style.left),
+                    e.pageY - parseInt($(this)[0].style.top),
+                    $(this)[0].rect.d.x, 
+                    $(this)[0].rect.d.y, 
+                    $(this)[0].rect.a.x, 
+                    $(this)[0].rect.a.y)
+                )));
+            if(di.d > 32)
+            {
             dragCanvas.canvas = $(this)[0];
             dragCanvas.x = e.pageX - parseInt($(this)[0].style.left);
             dragCanvas.y = e.pageY - parseInt($(this)[0].style.top);
+            }
+            else{
+
+            dragLine.startCanvas = $(this)[0];
+            dragLine.x = parseInt($(this)[0].style.left) + di.x;
+            dragLine.y = parseInt($(this)[0].style.top) + di.y;
+            }
         })
 
     .mouseup(function() {
+        $(this)[0].style.cursor = "default";
+        $('[data-toggle="dfsajkl;"]').tooltip(); 
         dragCanvas.canvas = null;
+
     }).mousemove(function(e)
         {
             var mymin = function(a, b)
@@ -148,90 +207,64 @@ function createNewPapElement(elementData)
                 else return b;
             }
 
-            var di = 
+            var di = mymin(distance(e.pageX - parseInt($(this)[0].style.left),
+                e.pageY - parseInt($(this)[0].style.top),
+                $(this)[0].rect.a.x, 
+                $(this)[0].rect.a.y, 
+                $(this)[0].rect.b.x, 
+                $(this)[0].rect.b.y),
                 mymin(distance(e.pageX - parseInt($(this)[0].style.left),
                     e.pageY - parseInt($(this)[0].style.top),
-                    $(this)[0].rect.a.x, 
-                    $(this)[0].rect.a.y, 
                     $(this)[0].rect.b.x, 
-                    $(this)[0].rect.b.y),
+                    $(this)[0].rect.b.y, 
+                    $(this)[0].rect.c.x, 
+                    $(this)[0].rect.c.y),
+                mymin(distance(e.pageX - parseInt($(this)[0].style.left),
+                    e.pageY - parseInt($(this)[0].style.top),
+                    $(this)[0].rect.c.x, 
+                    $(this)[0].rect.c.y, 
+                    $(this)[0].rect.d.x, 
+                    $(this)[0].rect.d.y),distance(e.pageX - parseInt($(this)[0].style.left),
+                    e.pageY - parseInt($(this)[0].style.top),
+                    $(this)[0].rect.d.x, 
+                    $(this)[0].rect.d.y, 
+                    $(this)[0].rect.a.x, 
+                    $(this)[0].rect.a.y)
+                )));
 
-                    mymin(distance(e.pageX - parseInt($(this)[0].style.left),
-                        e.pageY - parseInt($(this)[0].style.top),
-                        $(this)[0].rect.b.x, 
-                        $(this)[0].rect.b.y, 
-                        $(this)[0].rect.c.x, 
-                        $(this)[0].rect.c.y),
-                    mymin(distance(e.pageX - parseInt($(this)[0].style.left),
-                        e.pageY - parseInt($(this)[0].style.top),
-                        $(this)[0].rect.c.x, 
-                        $(this)[0].rect.c.y, 
-                        $(this)[0].rect.d.x, 
-                        $(this)[0].rect.d.y),distance(e.pageX - parseInt($(this)[0].style.left),
-                        e.pageY - parseInt($(this)[0].style.top),
-                        $(this)[0].rect.d.x, 
-                        $(this)[0].rect.d.y, 
-                        $(this)[0].rect.a.x, 
-                        $(this)[0].rect.a.y)
-                    )));
-
-            var pointCtx = $("#point")[0].getContext("2d");;
-        pointCtx.beginPath();
-        pointCtx.arc(3, 3,3,0,2*Math.PI);
-        pointCtx.stroke();
-        $("#point")[0].style.left = di.x + parseInt($(this)[0].style.left) - 3;
-        $("#point")[0].style.top = di.y + parseInt($(this)[0].style.top) - 3;
-           // alert(di.x + ", " + di.y + ", " + di.d);
             
-
-
-
-
-
-        }).mouseover(function(e)
-        {
-            x = e.pageX - parseInt($(this)[0].style.left);
-            y = e.pageY - parseInt($(this)[0].style.top);
-            if(x < 2*lineWidthBuffer ||
-               x - parseInt($(this)[0].style.width) < 2*lineWidthBuffer ||
-               y < 2*lineWidthBuffer || 
-               y - parseInt($(this)[0].style.height) < 2*lineWidthBuffer)
-
+            var pointCtx = $("#point")[0].getContext("2d");;
+            if(di.d <= 32)
             {
-               // var ctx = $(this)[0].getContext("2d");
-               // ctx.rect(x, y, 3, 3);
-              //  ctx.stroke();
+                $(this)[0].style.cursor = "default";
+                pointCtx.beginPath();
+                pointCtx.arc(3, 3,3,0,2*Math.PI);
+                pointCtx.stroke();
+                $("#point")[0].style.left = di.x + parseInt($(this)[0].style.left) - 3;
+                $("#point")[0].style.top = di.y + parseInt($(this)[0].style.top) - 3;
             }
-
-
-        }).mouseout(function()
+            else
             {
-        $("#point")[0].style.left = -$("#point")[0].width;
-
-                //$(this)[0].style.backgroundColor = "yellow";
-
-
-            }).dblclick(function(e)
+                $(this)[0].style.cursor = "all-scroll";
+                pointCtx.clearRect(0, 0, 1001, 1001);
+                pointCtx.beginPath();
+            }
+        }).mouseout(function()
         {
-
-
-
-
-
-
-
-
-
-
-
-
-        });
+            $(this)[0].style.cursor = "default";
+            $("#point")[0].style.left = -$("#point")[0].width;
+        }).dblclick(function()
+            {
+                $("#right")[0].style.display = "inline";
+                $("#mytext")[0].focus();
+            });
 
     ctx.fillStyle="rgba(0, 0, 200, 0)";
     ctx.fill();
 
     ctx.strokeStyle = 'rgba(0,0,0, 1)';
     ctx.fillStyle="rgba(0, 0, 0, 1)";
+
     if(elementData.type == textTypes.CONDITION)
     {
         canvas.rect = {
