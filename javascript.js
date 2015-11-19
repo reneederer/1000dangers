@@ -73,11 +73,38 @@ function distance(x, y, x1, y1, x2, y2) {
     return {x: nearest.x, y: nearest.y, d: Math.sqrt(dx * dx + dy * dy)}; 
 }
 
-
+function roundedCornersRect()
+{
+    var width = 130;
+    var height = 150;
+    var roundedCornerBegin = 30;
+    var x = 112;
+    var y = 104;
+    var ctx = $("#line")[0].getContext("2d");
+    ctx.beginPath();
+    ctx.moveTo(x + roundedCornerBegin, y);
+    ctx.lineTo(x + width - roundedCornerBegin, y);
+    ctx.arc(x + width - roundedCornerBegin, y + roundedCornerBegin, roundedCornerBegin, 1.5 * Math.PI, 2*Math.PI);
+    ctx.moveTo(x + width, y + roundedCornerBegin);
+    ctx.lineTo(x + width, y + height - roundedCornerBegin);
+    ctx.arc(x + width - roundedCornerBegin, y + height - roundedCornerBegin, roundedCornerBegin, 0, 0.5*Math.PI);
+    ctx.moveTo(x + width - roundedCornerBegin, y + height);
+    ctx.lineTo(x + roundedCornerBegin, y + height);
+    ctx.arc(x + roundedCornerBegin, y + height - roundedCornerBegin, roundedCornerBegin, 0.5*Math.PI, 1*Math.PI);
+    ctx.moveTo(x, y + height - roundedCornerBegin);
+    ctx.lineTo(x, y + roundedCornerBegin);
+    ctx.arc(x + roundedCornerBegin, y + roundedCornerBegin, roundedCornerBegin, 1*Math.PI, 1.5*Math.PI);
+    
+    //ctx.lineTo(x, y + height);
+    //ctx.lineTo(x, y);
+    ctx.stroke();
+}
 
 
 function createNewPapElement(elementData)
 {
+    roundedCornersRect();
+    return;
     $("#main").append("<canvas id='canvas" + elementData.id + "' style='position: absolute; z-index: " + elementData.id + ";'></canvas>"); 
     var canvas = $("#canvas" + elementData.id)[0];
 
