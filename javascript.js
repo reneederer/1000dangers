@@ -2,13 +2,14 @@ var textTypes =
 {
     START: 1,
     END: 2,
+    //TODO ACTION is a better name than STORY
     STORY: 3,
     CONDITION: 4
 };
 
 var dragCanvas = {canvas: null, x: 0, y: 0};
 var dragLine = {startCanvas: null, x:0, y: 0, endCanvas: null, isEndSet:false, endX:0, endY: 0};
-var closeToEdgeThreshold = 25;
+var closeToEdgeThreshold = 15;
 
 $(function()
         {
@@ -21,7 +22,7 @@ $(function()
                         var papElements = JSON.parse(data);
                         for(var el in papElements)
                         {
-                            createNewPapElement(papElements[el]);
+                            createPapElement(papElements[el]);
                         }
                     });
 
@@ -36,6 +37,12 @@ $(function()
                                 function(data, status){
                                 });
                     });
+
+    $("#mytext").mousedown(function(evt)
+    {
+        evt.stopPropagation();
+    });
+
     $(document).mouseup(function(){
         dragCanvas.canvas = null;
         var lineCtx = $("#line")[0].getContext("2d");
@@ -73,40 +80,6 @@ $(function()
 
 
 
-function nearestPoint(x, y, canvas)
-{
-            var mymin = function(a, b)
-            {
-                if(Math.min(a.d, b.d) == a.d) return a;
-                else return b;
-            }
-
-            var di = mymin(distance(x - parseInt(canvas.style.left),
-                y - parseInt(canvas.style.top),
-                canvas.points[0].x, 
-                canvas.points[0].y, 
-                canvas.points[1].x, 
-                canvas.points[1].y),
-                mymin(distance(x - parseInt(canvas.style.left),
-                    y - parseInt(canvas.style.top),
-                    canvas.points[1].x, 
-                    canvas.points[1].y, 
-                    canvas.points[2].x, 
-                    canvas.points[2].y),
-                mymin(distance(x - parseInt(canvas.style.left),
-                    y - parseInt(canvas.style.top),
-                    canvas.points[2].x, 
-                    canvas.points[2].y, 
-                    canvas.points[3].x, 
-                    canvas.points[3].y),distance(x - parseInt(canvas.style.left),
-                    y - parseInt(canvas.style.top),
-                    canvas.points[3].x, 
-                    canvas.points[3].y, 
-                    canvas.points[0].x, 
-                    canvas.points[0].y)
-                )));
-            return di;
-}
 
 function distance(x, y, x1, y1, x2, y2) {
 
@@ -142,9 +115,11 @@ function distance(x, y, x1, y1, x2, y2) {
 }
 
 
-function getPapElement(elementData)
+function createPapElement(elementData)
 {
     var canvas = $("<canvas id='canvas" + elementData.id + "' style='position: absolute; z-index: " + elementData.id + ";'></canvas>")[0]; 
+
+    //it is necessary to append the canvas immediately to a div to get the correct font size
     $("#main").append(canvas);
 
     // canvas size is unknown, set it to client size for measuring the text size
@@ -167,6 +142,12 @@ function getPapElement(elementData)
         height: fontSize + 2*canvas.padding.bottom
     };
 
+    if(elementData.type == textTypes.CONDITION)
+    {
+        rect.width *=1.4;
+        rect.height*=1.4;
+    }
+
     // set final canvas size
     canvas.width = rect.width + 2*lineWidthBuffer;
     canvas.height = rect.height + 2 * lineWidthBuffer;
@@ -175,8 +156,60 @@ function getPapElement(elementData)
     canvas.style.height = canvas.height;
     canvas.style.left = elementData.x;
     canvas.style.top = elementData.y;
-    canvas.text = "-text-";
 
+
+    var ctx = canvas.getContext("2d");
+    ctx.strokeStyle = 'rgba(0,0,0, 1)';
+    ctx.font = canvas.font;
+    var paintPolygon = function()
+            {
+                ctx.beginPath();
+                ctx.moveTo(canvas.points[0].x, canvas.points[0].y);
+                for(var i = 0; i < canvas.points.length; ++i)
+                {
+                    ctx.lineTo(canvas.points[i].x, canvas.points[i].y);
+                }
+                ctx.fillText(canvas.content.title, canvas.content.x, canvas.content.y);
+                ctx.closePath();
+                ctx.stroke();
+            };
+
+    var nearestPointToPolygon = function(x, y)
+        {
+            var mymin = function(a, b)
+            {
+                if(Math.min(a.d, b.d) == a.d) return a;
+                else return b;
+            }
+
+            var di = mymin(distance(x - parseInt(canvas.style.left),
+                y - parseInt(canvas.style.top),
+                canvas.points[0].x, 
+                canvas.points[0].y, 
+                canvas.points[1].x, 
+                canvas.points[1].y),
+                mymin(distance(x - parseInt(canvas.style.left),
+                    y - parseInt(canvas.style.top),
+                    canvas.points[1].x, 
+                    canvas.points[1].y, 
+                    canvas.points[2].x, 
+                    canvas.points[2].y),
+                mymin(distance(x - parseInt(canvas.style.left),
+                    y - parseInt(canvas.style.top),
+                    canvas.points[2].x, 
+                    canvas.points[2].y, 
+                    canvas.points[3].x, 
+                    canvas.points[3].y),distance(x - parseInt(canvas.style.left),
+                    y - parseInt(canvas.style.top),
+                    canvas.points[3].x, 
+                    canvas.points[3].y, 
+                    canvas.points[0].x, 
+                    canvas.points[0].y)
+                )));
+            return di;
+        }
+
+    canvas.text = elementData.text;
     if(elementData.type == textTypes.CONDITION)
     {
         canvas.points = Array();
@@ -184,9 +217,11 @@ function getPapElement(elementData)
         canvas.points[1] = {x: lineWidthBuffer + rect.width/2, y: lineWidthBuffer};
         canvas.points[2] = {x: lineWidthBuffer + rect.width, y: lineWidthBuffer + rect.height/2};
         canvas.points[3] = {x: lineWidthBuffer+ rect.width/2, y: lineWidthBuffer + rect.height};
-        canvas.content = {text: "", title: elementData.title, x:lineWidthBuffer + canvas.padding.left, y:lineWidthBuffer+ rect.height/2 + fontSize/2 - 0.2*fontSize};
+        canvas.content = {text: "", title: elementData.title, x:lineWidthBuffer +rect.width/2 - textWidth.width/2, y:lineWidthBuffer+ rect.height/2 + fontSize/2 - 0.2*fontSize};
+        canvas.paint = paintPolygon;
+        canvas.nearestPoint = nearestPointToPolygon;
     }
-    else if(elementData.type == textTypes.STORY || elementData.type == textTypes.END || elementData.type == textTypes.START)
+    else if(elementData.type == textTypes.STORY || elementData.type == textTypes.START || elementData.type == textTypes.END)
     {
         canvas.points = Array();
         canvas.points[0] = {x: lineWidthBuffer, y: lineWidthBuffer};
@@ -194,88 +229,60 @@ function getPapElement(elementData)
         canvas.points[2] = {x: lineWidthBuffer + rect.width, y: lineWidthBuffer + rect.height};
         canvas.points[3] = {x: lineWidthBuffer, y: lineWidthBuffer + rect.height};
         canvas.content = {text: "", title: elementData.title, x:lineWidthBuffer + canvas.padding.left, y:lineWidthBuffer + rect.height - canvas.padding.bottom - 0.2*fontSize}
+        canvas.paint = paintPolygon;
+        canvas.nearestPoint = nearestPointToPolygon;
     }
-    return canvas;
-}
-
-
-function paintCanvas(canvas)
-{
-    var ctx = canvas.getContext("2d");
-    ctx.strokeStyle = 'rgba(0,0,0, 1)';
-    ctx.font = canvas.font;
-
-
-    if(canvas.points.length == 0) return;
-    ctx.beginPath();
-
-    ctx.moveTo(canvas.points[0].x, canvas.points[0].y);
-    for(var i = 0; i < canvas.points.length; ++i)
+    else if(elementData.type == textTypes.START || elementData.type == textTypes.END)
     {
-        ctx.lineTo(canvas.points[i].x, canvas.points[i].y);
+//        var roundedCornerBegin = Math.min(canvas.padding.left, canvas.padding.right);
+//        canvas.points = Array();
+//        canvas.points[0] = {x: , y: };
+//        canvas.points[0] = 
+//        canvas.points[0] = 
+//        canvas.points[0] = 
+//        canvas.points[0] = 
+//        canvas.points[0] = 
+//        canvas.points[0] = 
+//        canvas.points[0] = 
+//        
+//        var ctx = $("#line")[0].getContext("2d");
+//        ctx.beginPath();
+//        ctx.moveTo(x + roundedCornerBegin, y);
+//        ctx.lineTo(x + width - roundedCornerBegin, y);
+//        ctx.arc(x + width - roundedCornerBegin, y + roundedCornerBegin, roundedCornerBegin, 1.5 * Math.PI, 2*Math.PI);
+//
+//
+//
+//        ctx.moveTo(x + width, y + roundedCornerBegin);
+//        ctx.lineTo(x + width, y + height - roundedCornerBegin);
+//        ctx.arc(x + width - roundedCornerBegin, y + height - roundedCornerBegin, roundedCornerBegin, 0, 0.5*Math.PI);
+//        ctx.moveTo(x + width - roundedCornerBegin, y + height);
+//        ctx.lineTo(x + roundedCornerBegin, y + height);
+//        ctx.arc(x + roundedCornerBegin, y + height - roundedCornerBegin, roundedCornerBegin, 0.5*Math.PI, 1*Math.PI);
+//        ctx.moveTo(x, y + height - roundedCornerBegin);
+//        ctx.lineTo(x, y + roundedCornerBegin);
+//        ctx.arc(x + roundedCornerBegin, y + roundedCornerBegin, roundedCornerBegin, 1*Math.PI, 1.5*Math.PI);
+//        ctx.closePath();
+//        ctx.stroke();
     }
-    ctx.fillText(canvas.content.title, canvas.content.x, canvas.content.y);
-    ctx.closePath();
-    ctx.stroke();
-}
-
-
-function roundedCornersRect()
-{
-    var width = 130;
-    var height = 150;
-    var roundedCornerBegin = 30;
-    var x = 112;
-    var y = 104;
-    var ctx = $("#line")[0].getContext("2d");
-    ctx.beginPath();
-    ctx.moveTo(x + roundedCornerBegin, y);
-    ctx.lineTo(x + width - roundedCornerBegin, y);
-    ctx.arc(x + width - roundedCornerBegin, y + roundedCornerBegin, roundedCornerBegin, 1.5 * Math.PI, 2*Math.PI);
-    ctx.moveTo(x + width, y + roundedCornerBegin);
-    ctx.lineTo(x + width, y + height - roundedCornerBegin);
-    ctx.arc(x + width - roundedCornerBegin, y + height - roundedCornerBegin, roundedCornerBegin, 0, 0.5*Math.PI);
-    ctx.moveTo(x + width - roundedCornerBegin, y + height);
-    ctx.lineTo(x + roundedCornerBegin, y + height);
-    ctx.arc(x + roundedCornerBegin, y + height - roundedCornerBegin, roundedCornerBegin, 0.5*Math.PI, 1*Math.PI);
-    ctx.moveTo(x, y + height - roundedCornerBegin);
-    ctx.lineTo(x, y + roundedCornerBegin);
-    ctx.arc(x + roundedCornerBegin, y + roundedCornerBegin, roundedCornerBegin, 1*Math.PI, 1.5*Math.PI);
-    
-    //ctx.lineTo(x, y + height);
-    //ctx.lineTo(x, y);
-    ctx.stroke();
-}
-
-
-function createNewPapElement(elementData)
-{
-    roundedCornersRect();
-    var canvas = getPapElement(elementData);
-    paintCanvas(canvas);
-
-    $("#mytext").mousedown(function(evt)
-    {
-        evt.stopPropagation();
-    });
     $("#canvas" + elementData.id)
         .mousedown(function(e) {
             //TODO make this element the topmost element
-            var di = nearestPoint(e.pageX, e.pageY, $(this)[0]);
+            var di = canvas.nearestPoint(e.pageX, e.pageY);
 
             if(di.d > closeToEdgeThreshold)
             {
-            dragCanvas.canvas = $(this)[0];
-            dragCanvas.x = e.pageX - parseInt($(this)[0].style.left);
-            dragCanvas.y = e.pageY - parseInt($(this)[0].style.top);
+                dragCanvas.canvas = $(this)[0];
+                dragCanvas.x = e.pageX - parseInt($(this)[0].style.left);
+                dragCanvas.y = e.pageY - parseInt($(this)[0].style.top);
             }
-            else{
-
-            dragLine.startCanvas = $(this)[0];
-            dragLine.x = parseInt($(this)[0].style.left) + di.x;
-            dragLine.y = parseInt($(this)[0].style.top) + di.y;
-            dragLine.endX = parseInt($(this)[0].style.left) + di.x;
-            dragLine.endY = parseInt($(this)[0].style.top) + di.y;
+            else
+            {
+                dragLine.startCanvas = $(this)[0];
+                dragLine.x = parseInt($(this)[0].style.left) + di.x;
+                dragLine.y = parseInt($(this)[0].style.top) + di.y;
+                dragLine.endX = parseInt($(this)[0].style.left) + di.x;
+                dragLine.endY = parseInt($(this)[0].style.top) + di.y;
             }
         })
 
@@ -284,10 +291,10 @@ function createNewPapElement(elementData)
 
     }).mousemove(function(e)
         {
-            var di = nearestPoint(e.pageX, e.pageY, $(this)[0]);
+            var di = canvas.nearestPoint(e.pageX, e.pageY);
             
             var pointCtx = $("#point")[0].getContext("2d");;
-            if(di.d <= closeToEdgeThreshold)
+            if(di.d <= closeToEdgeThreshold || dragLine.startCanvas != null)
             {
                 pointCtx.beginPath();
                 pointCtx.arc(3, 3,3,0,2*Math.PI);
@@ -298,9 +305,10 @@ function createNewPapElement(elementData)
                 dragLine.isEndSet = false;
                 if(dragLine.endCanvas != dragLine.startCanvas)
                 {
-                dragLine.isEndSet = true;
-                dragLine.endX = parseInt($("#point")[0].style.left);
-                dragLine.endY = parseInt($("#point")[0].style.top);}
+                    dragLine.isEndSet = true;
+                    dragLine.endX = parseInt($("#point")[0].style.left);
+                    dragLine.endY = parseInt($("#point")[0].style.top);
+                }
             }
             else
             {
@@ -319,6 +327,11 @@ function createNewPapElement(elementData)
                 $("#mytext")[0].focus();
             });
 
+        canvas.paint();
 }
+
+
+
+
 
 
