@@ -1,18 +1,54 @@
-var textTypes = 
-{
-    START: 1,
-    END: 2,
-    //TODO ACTION is a better name than STORY
-    STORY: 3,
-    CONDITION: 4
-};
-
 var dragCanvas = {canvas: null, x: 0, y: 0};
-var dragLine = {startCanvas: null, x:0, y: 0, endCanvas: null, isEndSet:false, endX:0, endY: 0};
-var closeToEdgeThreshold = 15;
+var dragLine = {startCanvas: null, x:0, y: 0, endCanvas: null, endX:0, endY: 0};
 
 $(function()
         {
+            var lineDiv = $("#lineDiv")[0];
+
+
+            lineDiv.style.width = document.body.clientWidth;
+            lineDiv.style.height = document.body.clientHeight;
+            
+            var dragLineCanvas = $("#dragLineCanvas")[0];
+            dragLineCanvas.width = parseInt(document.body.clientWidth);
+            dragLineCanvas.height = parseInt(document.body.clientHeight);
+            dragLineCanvas.style.width = document.body.clientWidth;
+            dragLineCanvas.style.height = document.body.clientHeight;
+
+            lineDiv.addLine = function(line)
+            {
+                var lineCanvas = $("<canvas style='position: absolute;z-index:0;'></canvas>")[0]; 
+                $(this).append(lineCanvas);
+                lineCanvas.style.left = 0;
+                lineCanvas.style.top = 0;
+                lineCanvas.width = document.body.clientWidth;
+                lineCanvas.height = document.body.clientHeight;
+                lineCanvas.style.width = document.body.clientWidth;
+                lineCanvas.style.height = document.body.clientHeight;
+                lineCanvas.line = line;
+            }
+
+
+
+            lineDiv.paint = function(affectedCanvas)
+            {
+                var lineCanvases = $("#lineDiv").children();
+                lineCanvases.each(function(index, currentLineCanvas)
+                {
+                    if(affectedCanvas == currentLineCanvas.line.startCanvas || affectedCanvas == currentLineCanvas.line.endCanvas)
+                    {
+                        var lineCtx = currentLineCanvas.getContext("2d");
+                        lineCtx.strokeStyle = 'rgba(0,0,0, 1)';
+                        lineCtx.clearRect(0, 0, currentLineCanvas.width, currentLineCanvas.height);
+                        lineCtx.beginPath();
+                        lineCtx.moveTo(parseInt(currentLineCanvas.line.startCanvas.style.left), parseInt(currentLineCanvas.line.startCanvas.style.top));
+                        lineCtx.lineTo(parseInt(currentLineCanvas.line.endCanvas.style.left), parseInt(currentLineCanvas.line.endCanvas.style.top));
+                        lineCtx.closePath();
+                        lineCtx.stroke();
+                    }
+                });
+            }
+
             $.post("test.php",
                     {
                         action: "load"
@@ -38,36 +74,39 @@ $(function()
                                 });
                     });
 
-    $("#mytext").mousedown(function(evt)
+    $("#mytext").mousedown(function(e)
     {
-        evt.stopPropagation();
+        e.stopPropagation();
     });
 
     $(document).mouseup(function(){
-        dragCanvas.canvas = null;
-        var lineCtx = $("#line")[0].getContext("2d");
-        lineCtx.clearRect(0, 0, 1001, 1001);
-        dragLine.startCanvas = null;
+        if(dragLine.startCanvas != null && dragLine.endCanvas != null)
+        {
+            $("#lineDiv")[0].addLine(dragLine);
+            $("#lineDiv")[0].paint(dragLine.startCanvas);
+        }
+        dragCanvas = {canvas: null, x: 0, y: 0};
+        dragLine = {startCanvas: null, x:0, y: 0, endCanvas: null, endX:0, endY: 0};
+                var lineCtx = $("#dragLineCanvas")[0].getContext("2d");
+                lineCtx.clearRect(0, 0,$("#dragLineCanvas")[0].width,$("#dragLineCanvas")[0].height);
+                lineCtx.beginPath();
+                lineCtx.closePath();
+                lineCtx.stroke();
     }).mousemove(function(e) {
         if(dragCanvas.canvas != null)
         {
             dragCanvas.canvas.style.left = e.pageX - dragCanvas.x; 
             dragCanvas.canvas.style.top = e.pageY - dragCanvas.y;
+            $("#lineDiv")[0].paint(dragCanvas.canvas);
+            return;
         }
         if(dragLine.startCanvas != null)
         {
-                var lineCtx = $("#line")[0].getContext("2d");
-                lineCtx.clearRect(0, 0,$("#line")[0].width,$("#line")[0].height);
+                var lineCtx = $("#dragLineCanvas")[0].getContext("2d");
+                lineCtx.clearRect(0, 0,$("#dragLineCanvas")[0].width,$("#dragLineCanvas")[0].height);
                 lineCtx.beginPath();
                 lineCtx.moveTo(dragLine.x, dragLine.y);
-                if(dragLine.isEndSet)
-                { 
-                    lineCtx.lineTo(dragLine.endX, dragLine.endY);
-                }
-                else
-                {
-                    lineCtx.lineTo(e.pageX, e.pageY);
-                }
+                lineCtx.lineTo(e.pageX, e.pageY);
                 lineCtx.closePath();
                 lineCtx.stroke();
         }
@@ -117,6 +156,16 @@ function distance(x, y, x1, y1, x2, y2) {
 
 function createPapElement(elementData)
 {
+    var textTypes = 
+    {
+        START: 1,
+        END: 2,
+        //TODO ACTION is a better name than STORY
+        STORY: 3,
+        CONDITION: 4
+    };
+    var closeToEdgeThreshold = 15;
+
     var canvas = $("<canvas id='canvas" + elementData.id + "' style='position: absolute; z-index: " + elementData.id + ";'></canvas>")[0]; 
 
     //it is necessary to append the canvas immediately to a div to get the correct font size
@@ -129,13 +178,13 @@ function createPapElement(elementData)
     canvas.font =  "1em arial";
     var ctx = canvas.getContext("2d");
     ctx.font = canvas.font;
-    ctx.font = "1em arial";
+    ctx.font = canvas.font;
     var fontSize = parseInt(ctx.font);
     var textWidth = ctx.measureText(elementData.title);
     var lineWidthBuffer = 15;
 
 
-    canvas.padding = {left:38, bottom:38};
+    canvas.padding = {left:18, bottom:18};
     var rect  = 
     {
         width: textWidth.width + 2*canvas.padding.left,
@@ -245,7 +294,7 @@ function createPapElement(elementData)
 //        canvas.points[0] = 
 //        canvas.points[0] = 
 //        
-//        var ctx = $("#line")[0].getContext("2d");
+//        var ctx = $("#lineDiv")[0].getContext("2d");
 //        ctx.beginPath();
 //        ctx.moveTo(x + roundedCornerBegin, y);
 //        ctx.lineTo(x + width - roundedCornerBegin, y);
@@ -291,6 +340,13 @@ function createPapElement(elementData)
 
     }).mousemove(function(e)
         {
+
+                    if(dragCanvas.canvas != null)
+                    {
+                        dragCanvas.canvas.style.left = e.pageX - dragCanvas.x; 
+                        dragCanvas.canvas.style.top = e.pageY - dragCanvas.y;
+                        $("#lineDiv")[0].paint();
+                    }
             var di = canvas.nearestPoint(e.pageX, e.pageY);
             
             var pointCtx = $("#point")[0].getContext("2d");;
@@ -327,7 +383,10 @@ function createPapElement(elementData)
                 $("#mytext")[0].focus();
             });
 
+
         canvas.paint();
+
+
 }
 
 
