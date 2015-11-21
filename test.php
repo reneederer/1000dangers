@@ -1,6 +1,5 @@
 <?php
 session_start();
-$_SESSION['1000dangersbook_id'] = 1;
 $_SESSION['1000dangersbook_name'] = '1000 Gefahren';
 $_SESSION['team_id'] = 1;
 $_SESSION['team_name'] = 'rene';
@@ -21,7 +20,7 @@ if($_POST['action'] == 'load')
 }
 else if($_POST['action'] == 'save')
 {
-    savePapElements();
+    savePapElements(json_decode($_POST['papElements'], true));
 }
 
 
@@ -29,7 +28,7 @@ function loadPapElements()
 {
     global $conn;
     $statement = $conn->prepare('
-        select papelement.id as id, paptype.name as type, x, y, title, text
+        select x, y, paptype.name as type, title, text
         from papelement
         join 1000dangersbook
           on papelement.1000dangersbook_id = 1000dangersbook.id
@@ -37,10 +36,12 @@ function loadPapElements()
            on 1000dangersbook.team_id = :team_id
         join paptype
           on papelement.paptype_id = paptype.id
-        where team.id = :team_id
-          and 1000dangersbook_id = :1000dangersbook_id');
-    $statement->bindParam(':1000dangersbook_id', $_SESSION['1000dangersbook_id']);
+        where
+          team.id = :team_id
+          and 1000dangersbook_id =
+            (select max(1000dangersbook.id) from 1000dangersbook where 1000dangersbook.name = :1000dangersbook_name)');
     $statement->bindParam(':team_id', $_SESSION['team_id']);
+    $statement->bindParam(':1000dangersbook_name', $_SESSION['1000dangersbook_name']);
     $result = $statement->execute();
     $result = $statement->setFetchMode(PDO::FETCH_ASSOC); 
     $rows = $statement->fetchAll();
@@ -48,7 +49,7 @@ function loadPapElements()
 }
 
 
-function savePapElements()
+function savePapElements($papElements)
 {
     global $conn;
     $statement = $conn->prepare('
@@ -57,22 +58,21 @@ function savePapElements()
     $statement->bindParam(':team_id', $_SESSION['team_id']);
     $statement->execute();
 
+    foreach($papElements as $papElement)
+    {
+        $statement = $conn->prepare('
+            insert into papelement
+              (1000dangersbook_id, x, y, paptype_id, title, text)
+            values ((select max(1000dangersbook.id) from 1000dangersbook where 1000dangersbook.name = :1000dangersbook_name), :x, :y, (select id from paptype where paptype.name = :type), :title, :text)');
 
-
-
-    $statement = $conn->prepare('select max(id) as max_id from 1000dangersbook where team_id = :team_id');
-    $statement->bindParam(':team_id', $_SESSION['team_id']);
-    $statement->execute();
-    $statement->setFetchMode(PDO::FETCH_ASSOC);
-    $rows = $statement->fetchAll();
-    $_SESSION['1000dangersbook_id'] = $rows[0]['max_id'];
-
-    $statement = $conn->prepare('
-        insert into papelement
-          (1000dangersbook_id, paptype_id, x, y, title, text)
-        values (:1000dangersbook_id, 4, 50, 60, "test", "mein text")');
-    $statement->bindParam(':1000dangersbook_id', $_SESSION['1000dangersbook_id']);
-    $result = $statement->execute();
+        $statement->bindParam(':1000dangersbook_name', $_SESSION['1000dangersbook_name']);
+        $statement->bindParam(':x', $papElement['x']);
+        $statement->bindParam(':y', $papElement['y']);
+        $statement->bindParam(':type', $papElement['type']);
+        $statement->bindParam(':title', $papElement['title']);
+        $statement->bindParam(':text', $papElement['text']);
+        $result = $statement->execute();
+    }
 }
 
 

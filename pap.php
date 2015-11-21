@@ -6,6 +6,6 @@
         <script src="jquery.js"></script>
     </head>
     <body onload="init();">
-        <canvas id="canvas" width="1000" height="1000"></canvas>
+        <canvas id="canvas"></canvas>
     </body>
 </html>
