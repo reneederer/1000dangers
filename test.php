@@ -29,12 +29,14 @@ function loadPapElements()
 {
     global $conn;
     $statement = $conn->prepare('
-        select papelement.id as id, paptype_id as type, x, y, title, text
+        select papelement.id as id, paptype.name as type, x, y, title, text
         from papelement
         join 1000dangersbook
           on papelement.1000dangersbook_id = 1000dangersbook.id
         join team
            on 1000dangersbook.team_id = :team_id
+        join paptype
+          on papelement.paptype_id = paptype.id
         where team.id = :team_id
           and 1000dangersbook_id = :1000dangersbook_id');
     $statement->bindParam(':1000dangersbook_id', $_SESSION['1000dangersbook_id']);

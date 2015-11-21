@@ -4,8 +4,6 @@ var dragLine = {startCanvas: null, x:0, y: 0, endCanvas: null, endX:0, endY: 0};
 $(function()
         {
             var lineDiv = $("#lineDiv")[0];
-
-
             lineDiv.style.width = document.body.clientWidth;
             lineDiv.style.height = document.body.clientHeight;
             
