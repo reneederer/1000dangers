@@ -60,7 +60,7 @@ $(function()
                         }
                     });
 
-            $(window).on('beforeunload', function()
+            $(window).on('unload', function()
                     {
                         $.post("test.php",
                                 {

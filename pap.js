@@ -14,7 +14,6 @@ function init()
             },
             function(data,status)
             {
-                alert(data);
                 var papElements = JSON.parse(data);
                 for(var el in papElements)
                 {
@@ -22,7 +21,7 @@ function init()
                 }
             });
 
-    $(window).on('resize', function()
+        $(window).on('beforeunload', function()
             {
                 var papElements = Array();
                 for(var i = 0; i < stage.numChildren; ++i)
@@ -36,10 +35,11 @@ function init()
                             papElements: JSON.stringify(papElements)
                         },
                         function(data, status){
-                            alert(data);
                         });
             });
 }
+
+
 
 
 function createPapElement(elementData)
@@ -60,11 +60,10 @@ function createPapElement(elementData)
     var shape = new createjs.Shape();
 
 
-
     switch(elementData.type)
     {
         case "Start":
-            //fallthrough
+            // fall through
         case "End":
             shape.graphics.beginFill("DeepSkyBlue").drawRoundRect(0, 0, bounds.width, bounds.height, 23);
             break;
@@ -77,6 +76,7 @@ function createPapElement(elementData)
         default:
             throw "Type not found!";
     }
+
 
     var container = new createjs.Container();
     container.x = elementData.x;
@@ -118,11 +118,25 @@ function createPapElement(elementData)
     stage.addChild(container);
 
     var line = new createjs.Shape();
-    line.graphics.setStrokeStyle(2).beginStroke("Green").moveTo(0, 0).lineTo(250, 250).lineTo(250-15, 250-15).moveTo(250, 250).lineTo(250);
+    var startX = 500;
+    var startY = 140;
+    var endX = 500;
+    var endY = 40;
+    var length = 40;
+    var angle = 20;
+    var dx = endX - startX;
+    var dy = endY - startY;
+    var slope = dy/dx;
+    alert(dx + ", " + dy + ", " + slope);
+    if(endX < startX) angle = 180 - angle;
+    var x1 = endX + length * Math.cos(-(180-angle) * (Math.PI/180) + Math.atan(slope));
+    var y1 = endY + length * Math.sin(-(180-angle) * (Math.PI/180) + Math.atan(slope));
+    var x2 = endX + length * Math.cos((180-angle) * (Math.PI/180) + Math.atan(slope));
+    var y2 = endY + length * Math.sin((180-angle) * (Math.PI/180) + Math.atan(slope));
+    line.graphics.setStrokeStyle(1).beginStroke("Green").moveTo(startX, startY).lineTo(endX, endY);
+    line.graphics.setStrokeStyle(1).beginStroke("Red").moveTo(endX, endY).lineTo(x1, y1);
+    line.graphics.setStrokeStyle(1).beginStroke("Blue").moveTo(endX, endY).lineTo(x2, y2);
     stage.addChild(line);
-
-
-
     stage.update();
 }
 
