@@ -21,6 +21,7 @@ function init()
             {
                 createPapElement(papElements[current]);
             }
+            alert("Elements: " + data);
         });
 
     $.post("test.php",
@@ -29,21 +30,25 @@ function init()
         },
         function(data, status)
         {
+            alert("Connections: " + data);
             var papConnections = JSON.parse(data);
             for(var current in papConnections)
             {
+                alert("done: " + JSON.stringify(papConnections[current]));
                 createPapConnection(papConnections[current]);
             }
         });
 
-$(window).on('beforeunload', function()
+$(window).on('resize', function()
     {
-        return;
         var papElements = Array();
         for(var i = 0; i < stage.numChildren; ++i)
         {
             var currentContainer = stage.getChildAt(i);
-            if(currentContainer.type) papElements.push({x:currentContainer.x, y:currentContainer.y, type:currentContainer.type, title:currentContainer.title, text:currentContainer.text});
+            if(currentContainer.type)
+            {
+                papElements.push({id: currentContainer.containerId, x:currentContainer.x, y:currentContainer.y, type:currentContainer.type, title:currentContainer.title, text:currentContainer.text});
+            }
         }
         if(papElements.length == 0)
         {
@@ -51,10 +56,36 @@ $(window).on('beforeunload', function()
         }
         $.post("test.php",
             {
-                action: "save",
+                action: "savePapElements",
                 papElements: JSON.stringify(papElements)
             },
             function(data, status){
+                alert("Save elements: " + data);
+            });
+
+        var papConnections = Array();
+        for(var i = 0; i < stage.numChildren; ++i)
+        {
+            var currentConnection = stage.getChildAt(i);
+            if(currentConnection.startContainer)
+            {
+                papConnections.push({source_id:currentConnection.startContainer.containerId,
+                                     destination_id: currentConnection.endContainer.containerId,
+                                     source_offset_x: currentConnection.startX,
+                                     source_offset_y: currentConnection.startY,
+                                     destination_offset_x: currentConnection.endX,
+                                     destination_offset_y: currentConnection.endY,
+                                     title: ""});
+            }
+        }
+        alert("papConnections: " + JSON.stringify(papConnections));
+        $.post("test.php",
+            {
+                action: "saveConnections",
+                papConnections: JSON.stringify(papConnections)
+            },
+            function(data, status){
+                alert(data);
             });
     });
     connectionLine = new createjs.Shape();
