@@ -225,13 +225,6 @@ function createPapElement(elementData)
         }
 
 
-
-
-
-
-
-
-
         var containerBounds = container.getBounds();
         if(container.x + containerBounds.width > parseInt(document.body.style.width))
         {
@@ -243,29 +236,35 @@ function createPapElement(elementData)
     });
 
     container.on("pressup", function(evt) {
+        outer:
         for(var i = stage.numChildren - 1; i >= 0; --i)
         {
             var currentContainer = stage.getChildAt(i);
-            if(currentContainer == container)
+            if(currentContainer == container || !currentContainer.title)
             {
                 continue;
             }
-            var bounds = currentContainer.getBounds();
-            if(currentContainer.title && bounds.width && bounds.height && evt.stageX >= currentContainer.x && evt.stageX <= parseFloat(currentContainer.x) + parseFloat(bounds.width) && evt.stageY >= currentContainer.y && evt.stageY <= parseFloat(currentContainer.y) + parseFloat(bounds.height))
+            var pt = currentContainer.globalToLocal(evt.stageX, evt.stageY);
+            if(currentContainer.hitTest(pt.x, pt.y))
             {
-                console.log(currentContainer.title);
+                for(var j = 0; j < stage.numChildren; ++j)
+                {
+                    var currentConnection = stage.getChildAt(j);
+                    if(!currentConnection.endContainer)
+                    {
+                        continue;
+                    }
+                    if(currentConnection.startContainer == connectionLine.startContainer && currentConnection.endContainer == currentContainer)
+                    {
+                        continue outer;
+                    }
+                            
+                }
                 connectionLine.endContainer = currentContainer;
                 connectionLine.startX -= connectionLine.startContainer.x;
                 connectionLine.startY -= connectionLine.startContainer.y;
                 connectionLine.endX = parseFloat(evt.stageX) - parseFloat(connectionLine.endContainer.x);
                 connectionLine.endY = parseFloat(evt.stageY) - parseFloat(connectionLine.endContainer.y);
-                var endX = parseFloat(connectionLine.endContainer.x) + parseFloat(connectionLine.endX);
-                var endY = parseFloat(connectionLine.endContainer.y) + parseFloat(connectionLine.endY);
-                var startX = parseFloat(connectionLine.startContainer.x) + parseFloat(connectionLine.startX);
-                var startY = parseFloat(connectionLine.startContainer.y) + parseFloat(connectionLine.startY);
-                connectionLine.graphics.clear();
-                connectionLine.graphics.setStrokeStyle(4).beginStroke("Green").moveTo(startX, startY).lineTo(endX, endY);
-                stage.update();
 
                 connectionLine = new createjs.Shape();
                 connectionLine.startContainer = null;
