@@ -9,26 +9,36 @@ function init()
     document.body.style.width = document.body.clientWidth;
     document.body.style.height= document.body.clientHeight;
     stage = new createjs.Stage("canvas");
+
     $.post("test.php",
         {
-            action: "load"
+            action: "loadPapElements"
         },
-        function(data,status)
+        function(data, status)
         {
             var papElements = JSON.parse(data);
-            for(var el in papElements)
+            for(var current in papElements)
             {
-                createPapElement(papElements[el]);
+                createPapElement(papElements[current]);
             }
-            connectionLine = new createjs.Shape();
-            connectionLine.startContainer = null;
-            connectionLine.startX = 0;
-            connectionLine.startY = 0;
-            stage.addChild(connectionLine);
+        });
+
+    $.post("test.php",
+        {
+            action: "loadConnections"
+        },
+        function(data, status)
+        {
+            var papConnections = JSON.parse(data);
+            for(var current in papConnections)
+            {
+                createPapConnection(papConnections[current]);
+            }
         });
 
 $(window).on('beforeunload', function()
     {
+        return;
         var papElements = Array();
         for(var i = 0; i < stage.numChildren; ++i)
         {
@@ -45,12 +55,38 @@ $(window).on('beforeunload', function()
                 papElements: JSON.stringify(papElements)
             },
             function(data, status){
-                if(data != ""){ alert(data);}
             });
     });
+    connectionLine = new createjs.Shape();
+    connectionLine.startContainer = null;
+    connectionLine.startX = 0;
+    connectionLine.startY = 0;
+    stage.addChild(connectionLine);
 }
 
 
+function drawArrow(line)
+{
+    var startX = parseFloat(line.startX) + parseFloat(line.startContainer.x);
+    var startY = parseFloat(line.startY) + parseFloat(line.startContainer.y);
+    var endX = parseFloat(line.endX) + parseFloat(line.endContainer.x);
+    var endY = parseFloat(line.endY) + parseFloat(line.endContainer.y);
+    var length = 40;
+    var angle = 20;
+    var dx = endX - startX;
+    var dy = endY - startY;
+    var slope = dy/dx;
+    if(endX < startX) angle = 180 - angle;
+    var x1 = endX + length * Math.cos(-(180-angle) * (Math.PI/180) + Math.atan(slope));
+    var y1 = endY + length * Math.sin(-(180-angle) * (Math.PI/180) + Math.atan(slope));
+    var x2 = endX + length * Math.cos((180-angle) * (Math.PI/180) + Math.atan(slope));
+    var y2 = endY + length * Math.sin((180-angle) * (Math.PI/180) + Math.atan(slope));
+    line.graphics.clear();
+    line.graphics.setStrokeStyle(4).beginStroke("Green").moveTo(startX, startY).lineTo(endX, endY);
+    line.graphics.setStrokeStyle(4).beginStroke("Red").moveTo(endX, endY).lineTo(x1, y1);
+    line.graphics.setStrokeStyle(4).beginStroke("Blue").moveTo(endX, endY).lineTo(x2, y2);
+    stage.update();
+}
 
 
 function createPapElement(elementData)
@@ -104,10 +140,9 @@ function createPapElement(elementData)
         case "Condition":
             border.graphics.beginFill("#FFBBBB").moveTo(0, bounds.height/2).lineTo(bounds.width/2, 0).lineTo(bounds.width, bounds.height/2).lineTo(bounds.width/2, bounds.height).lineTo(0, bounds.height/2);
             shape.graphics.beginFill("#FF7777").moveTo(outer, bounds.height/2).lineTo(bounds.width/2, outer).lineTo(bounds.width-outer, bounds.height/2).lineTo(bounds.width/2, bounds.height-outer).lineTo(outer, bounds.height/2);
-      //      shape.graphics.beginFill("Brown").drawRect(bounds.width/2-b.width/2, bounds.height/2-b.height/2, b.width, b.height);
             break;
         default:
-            throw "Type not found!";
+            console.log("Data type " + elementData.type + " not found!");
     }
 
 
@@ -136,31 +171,10 @@ function createPapElement(elementData)
     }
 
 
-    var drawArrow = function(line)
-    {
-        var startX = parseFloat(line.startX) + parseFloat(line.startContainer.x);
-        var startY = parseFloat(line.startY) + parseFloat(line.startContainer.y);
-        var endX = parseFloat(line.endX) + parseFloat(line.endContainer.x);
-        var endY = parseFloat(line.endY) + parseFloat(line.endContainer.y);
-        var length = 40;
-        var angle = 20;
-        var dx = endX - startX;
-        var dy = endY - startY;
-        var slope = dy/dx;
-        if(endX < startX) angle = 180 - angle;
-        var x1 = endX + length * Math.cos(-(180-angle) * (Math.PI/180) + Math.atan(slope));
-        var y1 = endY + length * Math.sin(-(180-angle) * (Math.PI/180) + Math.atan(slope));
-        var x2 = endX + length * Math.cos((180-angle) * (Math.PI/180) + Math.atan(slope));
-        var y2 = endY + length * Math.sin((180-angle) * (Math.PI/180) + Math.atan(slope));
-        line.graphics.clear();
-        line.graphics.setStrokeStyle(4).beginStroke("Green").moveTo(startX, startY).lineTo(endX, endY);
-        line.graphics.setStrokeStyle(4).beginStroke("Red").moveTo(endX, endY).lineTo(x1, y1);
-        line.graphics.setStrokeStyle(4).beginStroke("Blue").moveTo(endX, endY).lineTo(x2, y2);
-        stage.update();
-    }
 
 
     var container = new createjs.Container();
+    container.containerId = elementData.containerId;
     container.x = elementData.x;
     container.y = elementData.y;
     container.setBounds(0, 0, bounds.width, bounds.height);
@@ -175,7 +189,7 @@ function createPapElement(elementData)
         connectionLine.startContainer = border.parent;
         connectionLine.startX = evt.stageX;
         connectionLine.startY = evt.stageY;
-        drawConnectionLine(evt.stageX, evt.stageY);
+        drawArrow(evt.stageX, evt.stageY);
     });
 
     container.on("mousedown", function(evt){
@@ -185,7 +199,6 @@ function createPapElement(elementData)
         }
         if(evt.nativeEvent.button == 2) //right mouse button down
         {
-            alert(container.getBounds().width);
             return;
 
             var contextMenu = document.getElementById("contextMenu");
@@ -281,6 +294,33 @@ function createPapElement(elementData)
     });
     stage.addChild(container);
 
+    stage.update();
+}
+
+
+function createPapConnection(connectionData)
+{
+    var findContainer = function(containerId)
+    {
+        for(var i = 0; i < stage.numChildren; ++i)
+        {
+            if(stage.getChildAt(i).containerId == containerId)
+            {
+                return stage.getChildAt(i);
+            }
+        }
+        return null;
+    };
+
+    var connection = new createjs.Shape();
+    connection.startContainer = findContainer(connectionData.source_id);
+    connection.startX = connectionData.source_offset_x;
+    connection.startY = connectionData.source_offset_y;
+    connection.endContainer = findContainer(connectionData.destination_id);
+    connection.endX = connectionData.destination_offset_x;
+    connection.endY = connectionData.destination_offset_y;
+    stage.addChild(connection);
+    drawArrow(connection);
     stage.update();
 }
 

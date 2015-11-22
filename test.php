@@ -12,11 +12,16 @@ if(!isset($_POST['action']))
     return;
 }
 
-if($_POST['action'] == 'load')
+if($_POST['action'] == 'loadPapElements')
 {
     $papElements = loadPapElements();
     echo json_encode($papElements);
 
+}
+else if($_POST['action'] == 'loadConnections')
+{
+    $papConnections = loadPapConnections();
+    echo json_encode($papConnections);
 }
 else if($_POST['action'] == 'save')
 {
@@ -28,7 +33,7 @@ function loadPapElements()
 {
     global $conn;
     $statement = $conn->prepare('
-        select x, y, paptype.name as type, title, text
+        select papelement.id as containerId, x, y, paptype.name as type, title, text
         from papelement
         join 1000dangersbook
           on papelement.1000dangersbook_id = 1000dangersbook.id
@@ -37,9 +42,7 @@ function loadPapElements()
         join paptype
           on papelement.paptype_id = paptype.id
         where
-          team.id = :team_id
-          and 1000dangersbook_id =
-            (select max(1000dangersbook.id) from 1000dangersbook where 1000dangersbook.name = :1000dangersbook_name)');
+          1000dangersbook_id = (select max(1000dangersbook.id) from 1000dangersbook where 1000dangersbook.name = :1000dangersbook_name)');
     $statement->bindParam(':team_id', $_SESSION['team_id']);
     $statement->bindParam(':1000dangersbook_name', $_SESSION['1000dangersbook_name']);
     $result = $statement->execute();
@@ -47,6 +50,31 @@ function loadPapElements()
     $rows = $statement->fetchAll();
     return $rows;
 }
+
+
+function loadPapConnections()
+{
+    global $conn;
+    $statement = $conn->prepare('
+        select papconnection.source_id, papconnection.destination_id, papconnection.source_offset_x, papconnection.source_offset_y, papconnection.destination_offset_x, papconnection.destination_offset_y, papconnection.title
+        from papelement
+        join papconnection 
+          on papelement.id = papconnection.source_id or papelement.id = papconnection.destination_id
+        join 1000dangersbook
+          on papconnection.1000dangersbook_id = 1000dangersbook.id
+        join team
+           on 1000dangersbook.team_id = :team_id
+        where (select max(1000dangersbook.id) from 1000dangersbook where 1000dangersbook.name = :1000dangersbook_name)');
+    $statement->bindParam(':team_id', $_SESSION['team_id']);
+    $statement->bindParam(':1000dangersbook_name', $_SESSION['1000dangersbook_name']);
+    $result = $statement->execute();
+    $result = $statement->setFetchMode(PDO::FETCH_ASSOC); 
+    $rows = $statement->fetchAll();
+    return $rows;
+}
+
+
+
 
 
 function savePapElements($papElements)
