@@ -1,15 +1,29 @@
+/*jslint todo: true */
+'use strict';
 var stage = null;
-var connectionLine = null;
+var dragConnectionLine = null;
 
-function init()
+function setCanvasSize()
 {
     var canvas = document.getElementById("canvas");
     canvas.width = document.body.clientWidth;
     canvas.height = document.body.clientHeight;
-    document.body.style.width = document.body.clientWidth;
-    document.body.style.height= document.body.clientHeight;
-    stage = new createjs.Stage("canvas");
+}
 
+
+function init()
+{
+    setCanvasSize();
+    stage = new createjs.Stage("canvas");
+    load();
+    $(window).on('beforeunload', save);
+    dragConnectionLine = createDragConnectionLine();
+    stage.addChild(dragConnectionLine);
+}
+
+
+function load()
+{
     $.post("test.php",
         {
             action: "loadPapElements"
@@ -17,11 +31,7 @@ function init()
         function(data, status)
         {
             var papElements = JSON.parse(data);
-            for(var current in papElements)
-            {
-                createPapElement(papElements[current]);
-            }
-            alert("Elements: " + data);
+            papElements.forEach(createPapElement);
         });
 
     $.post("test.php",
@@ -30,69 +40,75 @@ function init()
         },
         function(data, status)
         {
-            alert("Connections: " + data);
             var papConnections = JSON.parse(data);
-            for(var current in papConnections)
-            {
-                alert("done: " + JSON.stringify(papConnections[current]));
-                createPapConnection(papConnections[current]);
-            }
+            papConnections.forEach(createPapConnection);
+        });
+}
+
+
+function isAConnection(element)
+{
+    return element.startContainer && element.endContainer && element != dragConnectionLine;
+}
+
+
+function isAPapElement(element)
+{
+    return element.containerId || false;
+}
+
+
+function save()
+{
+    var papElements = new Array();
+    stage.children.filter(isAPapElement).forEach(function(currentContainer)
+    {
+        papElements.push({id: currentContainer.containerId,
+                          x:currentContainer.x,
+                          y:currentContainer.y,
+                          type:currentContainer.type,
+                          title:currentContainer.title,
+                          text:currentContainer.text});
+    });
+    $.post("test.php",
+        {
+            action: "savePapElements",
+            papElements: JSON.stringify(papElements)
+        },
+        function(data, status){
         });
 
-$(window).on('resize', function()
+    var papConnections = new Array();
+    stage.children.filter(isAConnection).forEach(function(currentConnection)
     {
-        var papElements = Array();
-        for(var i = 0; i < stage.numChildren; ++i)
-        {
-            var currentContainer = stage.getChildAt(i);
-            if(currentContainer.type)
-            {
-                papElements.push({id: currentContainer.containerId, x:currentContainer.x, y:currentContainer.y, type:currentContainer.type, title:currentContainer.title, text:currentContainer.text});
-            }
-        }
-        if(papElements.length == 0)
-        {
-            return;
-        }
-        $.post("test.php",
-            {
-                action: "savePapElements",
-                papElements: JSON.stringify(papElements)
-            },
-            function(data, status){
-                alert("Save elements: " + data);
-            });
-
-        var papConnections = Array();
-        for(var i = 0; i < stage.numChildren; ++i)
-        {
-            var currentConnection = stage.getChildAt(i);
-            if(currentConnection.startContainer)
-            {
-                papConnections.push({source_id:currentConnection.startContainer.containerId,
-                                     destination_id: currentConnection.endContainer.containerId,
-                                     source_offset_x: currentConnection.startX,
-                                     source_offset_y: currentConnection.startY,
-                                     destination_offset_x: currentConnection.endX,
-                                     destination_offset_y: currentConnection.endY,
-                                     title: ""});
-            }
-        }
-        alert("papConnections: " + JSON.stringify(papConnections));
-        $.post("test.php",
-            {
-                action: "saveConnections",
-                papConnections: JSON.stringify(papConnections)
-            },
-            function(data, status){
-                alert(data);
-            });
+        papConnections.push({source_id:currentConnection.startContainer.containerId,
+                             destination_id: currentConnection.endContainer.containerId,
+                             source_offset_x: currentConnection.startX,
+                             source_offset_y: currentConnection.startY,
+                             destination_offset_x: currentConnection.endX,
+                             destination_offset_y: currentConnection.endY,
+                             title: ""});
     });
-    connectionLine = new createjs.Shape();
-    connectionLine.startContainer = null;
-    connectionLine.startX = 0;
-    connectionLine.startY = 0;
-    stage.addChild(connectionLine);
+    $.post("test.php",
+        {
+            action: "saveConnections",
+            papConnections: JSON.stringify(papConnections)
+        },
+        function(data, status){
+        });
+}
+
+
+function createDragConnectionLine()
+{
+    var line = new createjs.Shape();
+    line.startContainer = stage;
+    line.startX = 0;
+    line.startY = 0;
+    line.endContainer = stage;
+    line.endX = 0;
+    line.endY = 0;
+    return line;
 }
 
 
@@ -102,6 +118,11 @@ function drawArrow(line)
     var startY = parseFloat(line.startY) + parseFloat(line.startContainer.y);
     var endX = parseFloat(line.endX) + parseFloat(line.endContainer.x);
     var endY = parseFloat(line.endY) + parseFloat(line.endContainer.y);
+    if(endX == startX && endY == startY)
+    {
+        endX += 2;
+        endY += 2;
+    }
     var length = 40;
     var angle = 20;
     var dx = endX - startX;
@@ -120,10 +141,9 @@ function drawArrow(line)
 }
 
 
-function createPapElement(elementData)
+function createContainer(elementData)
 {
-    var innerPadding = 15; 
-    var dragPosition = {x:0, y:0};
+    var innerPadding = 15;
     var text = new createjs.Text(elementData.title, "20px Arial", "#040000");
     var b = text.getBounds();
     var bounds = {};
@@ -136,7 +156,7 @@ function createPapElement(elementData)
     {
         var innerS = {x:Math.cos(Math.PI/4) * (innerPadding), y:Math.sin(Math.PI/4) * (innerPadding)};
         var innerX = innerS.x + innerS.y;
-        var innerY = innerS.x+innerS.y; 
+        var innerY = innerS.x+innerS.y;
         var t = innerS.x + innerS.y;
         bounds.width = b.width + 2*innerX;
         bounds.height = bounds.width;
@@ -161,11 +181,11 @@ function createPapElement(elementData)
         case "Start":
             // fall through
         case "End":
-            border.graphics.setStrokeStyle(borderSize).beginStroke("#FFBBBB").beginFill("#FFBBBB").drawRoundRect(0, 0, bounds.width, bounds.height, 23);  
+            border.graphics.setStrokeStyle(borderSize).beginStroke("#FFBBBB").beginFill("#FFBBBB").drawRoundRect(0, 0, bounds.width, bounds.height, 23);
             shape.graphics.beginFill("#FF7777").drawRoundRect(borderSize/2, borderSize/2, bounds.width-borderSize, bounds.height-borderSize, 23);
             break;
         case "Action":
-            border.graphics.setStrokeStyle(borderSize).beginStroke("#FFBBBB").beginFill("#FFBBBB").drawRect(0, 0, bounds.width, bounds.height, 23);  
+            border.graphics.setStrokeStyle(borderSize).beginStroke("#FFBBBB").beginFill("#FFBBBB").drawRect(0, 0, bounds.width, bounds.height, 23);
             shape.graphics.beginFill("#FF7777").drawRect(borderSize/2, borderSize/2, bounds.width-borderSize, bounds.height-borderSize);
             break;
         case "Condition":
@@ -176,97 +196,74 @@ function createPapElement(elementData)
             console.log("Data type " + elementData.type + " not found!");
     }
 
-
-    var drawConnectionLine = function(endX, endY)
-    {
-        if(endX == connectionLine.startX && endY == connectionLine.startY)
-        {
-            endX += 2;
-            endY += 2;
-        }
-        var length = 40;
-        var angle = 20;
-        var dx = endX - connectionLine.startX;
-        var dy = endY - connectionLine.startY;
-        var slope = dy/dx;
-        if(endX < connectionLine.startX) angle = 180 - angle;
-        var x1 = endX + length * Math.cos(-(180-angle) * (Math.PI/180) + Math.atan(slope));
-        var y1 = endY + length * Math.sin(-(180-angle) * (Math.PI/180) + Math.atan(slope));
-        var x2 = endX + length * Math.cos((180-angle) * (Math.PI/180) + Math.atan(slope));
-        var y2 = endY + length * Math.sin((180-angle) * (Math.PI/180) + Math.atan(slope));
-        connectionLine.graphics.clear();
-        connectionLine.graphics.setStrokeStyle(4).beginStroke("Green").moveTo(connectionLine.startX, connectionLine.startY).lineTo(endX, endY);
-        connectionLine.graphics.setStrokeStyle(4).beginStroke("Red").moveTo(endX, endY).lineTo(x1, y1);
-        connectionLine.graphics.setStrokeStyle(4).beginStroke("Blue").moveTo(endX, endY).lineTo(x2, y2);
-        stage.update();
-    }
-
-
-
-
     var container = new createjs.Container();
     container.containerId = elementData.containerId;
     container.x = elementData.x;
     container.y = elementData.y;
-    container.setBounds(0, 0, bounds.width, bounds.height);
     container.addChild(border);
     container.addChild(shape);
     container.addChild(text);
     container.text = elementData.text;
     container.title = elementData.title;
     container.type = elementData.type;
+    return container;
+    
+}
 
-    border.on("mousedown", function(evt){
-        connectionLine.startContainer = border.parent;
-        connectionLine.startX = evt.stageX;
-        connectionLine.startY = evt.stageY;
-        drawArrow(evt.stageX, evt.stageY);
+
+function hasStartOrEndContainer(line, container)
+{
+    return line.startContainer == container || line.endContainer == container;
+}
+
+
+function hasStartAndEndContainer(line, startContainer, endContainer)
+{
+    return line.startContainer == startContainer && line.endContainer == endContainer;
+}
+
+
+function createPapElement(elementData)
+{
+    var containerDragPosition = {x:0, y:0};
+    var container = createContainer(elementData);
+    container.getChildAt(0).on("mousedown", function(evt){
+        dragConnectionLine.startContainer = container;
+        dragConnectionLine.startX = evt.stageX - container.x;
+        dragConnectionLine.startY = evt.stageY - container.y;
+        dragConnectionLine.endContainer = stage;
+        dragConnectionLine.endX = evt.stageX;
+        dragConnectionLine.endY = evt.stageY;
+        drawArrow(dragConnectionLine);
     });
 
     container.on("mousedown", function(evt){
-        if(connectionLine.startContainer != null)
-        {
-            return;
-        }
-        if(evt.nativeEvent.button == 2) //right mouse button down
-        {
-            return;
-
-            var contextMenu = document.getElementById("contextMenu");
-            contextMenu.style.left = evt.stageX;;
-            contextMenu.style.top = evt.stageY;
-            contextMenu.style.display = "block";
-        }
-        else
-        {
-            dragPosition.x = evt.stageX - container.x;
-            dragPosition.y = evt.stageY - container.y;
-        }
+        hideTextDiv();
+        containerDragPosition.x = evt.stageX - container.x;
+        containerDragPosition.y = evt.stageY - container.y;
     });
-    document.addEventListener('contextmenu', function(evt){evt.preventDefault();});
+
     container.on("pressmove", function(evt) {
-        if(connectionLine.startContainer != null)
+        if(isConnectionLineDragging())
         {
-            drawConnectionLine(evt.stageX, evt.stageY);
+            dragConnectionLine.endX = evt.stageX;
+            dragConnectionLine.endY = evt.stageY;
+            drawArrow(dragConnectionLine);
             return;
         }
         if(evt.nativeEvent.button != 0) return;
-        container.x = evt.stageX - dragPosition.x;
-        container.y = evt.stageY - dragPosition.y;
+        container.x = evt.stageX - containerDragPosition.x;
+        container.y = evt.stageY - containerDragPosition.y;
 
-        for(var i = 0; i < stage.numChildren; ++i)
-        {
-            var currentLine = stage.getChildAt(i);
-            if(!currentLine.endContainer)
-            {
-                continue;
-            }
-            if(container == currentLine.startContainer || container == currentLine.endContainer)
-            {
-                currentLine.graphics.clear();
-                drawArrow(currentLine);
-            }
-        }
+        stage.children.filter(function(currentConnection)
+                {
+                    return isAConnection(currentConnection) && 
+                        (currentConnection.startContainer == container || currentConnection.endContainer == container);
+                }).forEach(function(currentConnection)
+                {
+                    currentConnection.graphics.clear();
+                    drawArrow(currentConnection);
+                });
 
 
         var containerBounds = container.getBounds();
@@ -280,78 +277,79 @@ function createPapElement(elementData)
     });
 
     container.on("pressup", function(evt) {
-        outer:
-        for(var i = stage.numChildren - 1; i >= 0; --i)
-        {
-            var currentContainer = stage.getChildAt(i);
-            if(currentContainer == container || !currentContainer.title)
-            {
-                continue;
-            }
-            var pt = currentContainer.globalToLocal(evt.stageX, evt.stageY);
-            if(currentContainer.hitTest(pt.x, pt.y))
-            {
-                for(var j = 0; j < stage.numChildren; ++j)
+        var endContainer = stage.children.find(function(currentContainer)
                 {
-                    var currentConnection = stage.getChildAt(j);
-                    if(!currentConnection.endContainer)
-                    {
-                        continue;
-                    }
-                    if(currentConnection.startContainer == connectionLine.startContainer && currentConnection.endContainer == currentContainer)
-                    {
-                        continue outer;
-                    }
-                            
-                }
-                connectionLine.endContainer = currentContainer;
-                connectionLine.startX -= connectionLine.startContainer.x;
-                connectionLine.startY -= connectionLine.startContainer.y;
-                connectionLine.endX = parseFloat(evt.stageX) - parseFloat(connectionLine.endContainer.x);
-                connectionLine.endY = parseFloat(evt.stageY) - parseFloat(connectionLine.endContainer.y);
+                    var pt = currentContainer.globalToLocal(evt.stageX, evt.stageY);
+                    return currentContainer != container && isAPapElement(currentContainer)
+                        && currentContainer.hitTest(pt.x, pt.y);
+                });
 
-                connectionLine = new createjs.Shape();
-                connectionLine.startContainer = null;
-                connectionLine.startX = 0;
-                connectionLine.startY = 0;
-                stage.addChild(connectionLine);
-                break;
-            }
+        var isAlreadyConnected = stage.children.some(function(currentConnection)
+                {
+                    return isAConnection(currentConnection) && hasStartAndEndContainer(currentConnection, dragConnectionLine.startContainer, endContainer); 
+                });
+        if(!isAlreadyConnected && endContainer != undefined)
+        {
+            dragConnectionLine.endContainer = endContainer;
+            dragConnectionLine.endX = parseFloat(evt.stageX) - parseFloat(dragConnectionLine.endContainer.x);
+            dragConnectionLine.endY = parseFloat(evt.stageY) - parseFloat(dragConnectionLine.endContainer.y);
+            dragConnectionLine = createDragConnectionLine();
+            stage.addChild(dragConnectionLine);
         }
+        stopConnectionLineDragging(endContainer, evt.stageX, evt.stageY);
 
-        connectionLine.graphics.clear();
-        connectionLine.startContainer = null;
+
+        dragConnectionLine.graphics.clear();
         stage.update();
     });
     stage.addChild(container);
-
     stage.update();
+}
+
+
+function isConnectionLineDragging()
+{
+    return dragConnectionLine.startContainer != stage;
+}
+
+
+function stopConnectionLineDragging()
+{
+    dragConnectionLine.startContainer = stage;
+}
+
+
+function startConnectionLineDragging(startContainer)
+{
+    dragConnectionLine.startContainer = startContainer;
+}
+
+
+
+function hideTextDiv()
+{
+    textDiv.style.display = "none";
+}
+
+
+function showTextDiv()
+{
+    var textDiv = document.getElementById("textDiv");
+    textDiv.style.display = "block";
 }
 
 
 function createPapConnection(connectionData)
 {
-    var findContainer = function(containerId)
-    {
-        for(var i = 0; i < stage.numChildren; ++i)
-        {
-            if(stage.getChildAt(i).containerId == containerId)
-            {
-                return stage.getChildAt(i);
-            }
-        }
-        return null;
-    };
-
-    var connection = new createjs.Shape();
-    connection.startContainer = findContainer(connectionData.source_id);
-    connection.startX = connectionData.source_offset_x;
-    connection.startY = connectionData.source_offset_y;
-    connection.endContainer = findContainer(connectionData.destination_id);
-    connection.endX = connectionData.destination_offset_x;
-    connection.endY = connectionData.destination_offset_y;
-    stage.addChild(connection);
-    drawArrow(connection);
+    var connectionLine = new createjs.Shape();
+    connectionLine.startContainer = stage.children.find(function(currentContainer){return currentContainer.containerId == connectionData.source_id;});
+    connectionLine.startX = connectionData.source_offset_x;
+    connectionLine.startY = connectionData.source_offset_y;
+    connectionLine.endContainer = stage.children.find(function(currentContainer){return currentContainer.containerId == connectionData.destination_id;});
+    connectionLine.endX = connectionData.destination_offset_x;
+    connectionLine.endY = connectionData.destination_offset_y;
+    stage.addChild(connectionLine);
+    drawArrow(connectionLine);
     stage.update();
 }
 

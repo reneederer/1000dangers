@@ -4,7 +4,8 @@ $_SESSION['1000dangersbook_name'] = '1000 Gefahren';
 $_SESSION['team_id'] = 1;
 $_SESSION['team_name'] = 'rene';
 
-$conn = new PDO('mysql:host=localhost;dbname=1000dangers', 'root', '1234');
+//$conn = new PDO('mysql:host=fdb6.biz.nf;dbname=1998294_db', '1998294_db', 'Nuernberg12');
+$conn = new PDO('mysql:host=localhost;dbname=1998294_db', '1998294_db', 'Nuernberg12');
 $conn->setAttribute(PDO::ATTR_ERRMODE, PDO::ERRMODE_EXCEPTION);
 
 if(!isset($_POST['action']))

@@ -1,6 +1,9 @@
-drop database if exists 1000dangers;
-create database 1000dangers;
-use 1000dangers;
+use 1998294_db;
+drop table if exists papconnection;
+drop table if exists papelement;
+drop table if exists paptype;
+drop table if exists 1000dangersbook;
+drop table if exists team;
 create table team(id int auto_increment primary key, name varchar(50), password varchar(50));
 create table 1000dangersbook(id int auto_increment primary key, team_id int, name varchar(150), creationDate datetime, foreign key(team_id) references team(id));
 create table paptype(id int auto_increment primary key, name varchar(30));
