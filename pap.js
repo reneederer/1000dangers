@@ -84,7 +84,7 @@ function save(stage)
                              source_offset_y: currentConnection.startY,
                              destination_offset_x: currentConnection.endX,
                              destination_offset_y: currentConnection.endY,
-                             title: ""});
+                             title: currentConnection.text.text});
     });
     $.post("test.php",
         { action: "saveConnections",
@@ -123,6 +123,7 @@ function createDragConnectionLine(stage)
 
 function calculateArrowEndPoints(line)
 {
+
     var startX = +line.startX + +line.startContainer.x;
     var startY = +line.startY + +line.startContainer.y;
     var endX = +line.endX + +line.endContainer.x;
@@ -155,15 +156,13 @@ function drawArrow(stage, line)
     line.graphics.setStrokeStyle(4).beginStroke("Red").moveTo(arrowEndPoints.endX, arrowEndPoints.endY).lineTo(arrowEndPoints.x1, arrowEndPoints.y1);
     line.graphics.setStrokeStyle(4).beginStroke("Blue").moveTo(arrowEndPoints.endX, arrowEndPoints.endY).lineTo(arrowEndPoints.x2, arrowEndPoints.y2);
 
-    if(line.text)
-    {
-        var b = line.text.getBounds();
-        line.text.x = Math.abs(arrowEndPoints.endX+arrowEndPoints.startX)/2;
-        line.text.y = Math.abs(arrowEndPoints.endY+arrowEndPoints.startY)/2;
-        line.text.regX = b.width/2;
-        line.text.regY = b.height/2;
-        line.text.rotation = arrowEndPoints.degrees;
-    }
+    if(line.text.text == ""){ return; }
+    var b = line.text.getBounds();
+    line.text.x = Math.abs(arrowEndPoints.endX+arrowEndPoints.startX)/2;
+    line.text.y = Math.abs(arrowEndPoints.endY+arrowEndPoints.startY)/2;
+    line.text.regX = b.width/2;
+    line.text.regY = b.height/2;
+    line.text.rotation = arrowEndPoints.degrees;
 
 
     stage.update();
@@ -196,6 +195,7 @@ function createContainer(elementData)
     text.x = bounds.width/2 - textBounds .width/2;
     text.y =  bounds.height/2 - textBounds .height/2;
     text.textBaseline = "top";
+    text.on("dblclick", changeTitle);
 
     var border = new createjs.Shape();
     var shape = new createjs.Shape();
@@ -407,6 +407,10 @@ function createPapElement(stage, elementData)
                 });
         if(!isAlreadyConnected && endContainer != undefined)
         {
+            dragConnectionLine.on("mousedown", changeTitle);
+            dragConnectionLine.text.on("mousedown", changeTitle);
+            dragConnectionLine.text.textBaseline = "middle";
+            stage.addChild(dragConnectionLine.text);
             dragConnectionLine.endContainer = endContainer;
             dragConnectionLine.endX = evt.stageX - dragConnectionLine.endContainer.x;
             dragConnectionLine.endY = evt.stageY - dragConnectionLine.endContainer.y;
@@ -424,10 +428,24 @@ function createPapElement(stage, elementData)
 }
 
 
+
+function changeTitle(){
+    //TODO the size of a papElement should adapt to the content
+    //TODO Bug: empty string for connectionline gives an error
+    var it = this.text.text ? this.text : this;
+    it.text = prompt("Bitte gib den neuen Titel fuer diese Verbindungslinie ein:", it.text);
+    if(it.text == "") it.text = " ";
+    stage.update();
+}
+
+
 function createPapConnection(stage, connectionData)
 {
     var connectionLine = new createjs.Shape();
     connectionLine.text = new createjs.Text(connectionData.title + " ", "20px Arial", "#040000");
+    if(connectionLine.text == "") connectionLine.text = " ";
+    connectionLine.on("mousedown", changeTitle);
+    connectionLine.text.on("mousedown", changeTitle);
 
     connectionLine.border = new createjs.Shape();
     connectionLine.text.textBaseline = "middle";
