@@ -2,6 +2,11 @@
 session_start();
 
 require('dbconnection.php');
+//TODO 
+$_SESSION['1000dangersbook_name'] = '1000 Gefahren';
+$_SESSION['team_name'] = $_POST['name'];
+$_SESSION['team_id'] = 1;
+header('Location: pap.php');
 
 
 if(isset($_SESSION['team_name']) && $_SESSION['team_name'] === 'rene')

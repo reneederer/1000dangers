@@ -34,7 +34,10 @@ QUnit.test("Testet smallerThanSeven!!", function(assert)
         <div id="qunit"></div>
         <div id="qunit-fixture"></div>
         <canvas id="canvas"></canvas>
-        <div id="textDiv" style="position:absolute; right:0; top:0; width:500; height: 500; display:none; background-color: 00ffdd;"></div>
+        <div id="textDiv" style="position:absolute; right:0; top:0; width:500; height: 500; background-color: 00ffdd;">
+            <input type="text" id="papTitle"></input>
+            <textarea id="papText" rows="5" cols="6" style="width:100%; height:100%; vertical-align:top; display:block;"></textarea>
+        </div>
         <div id="contextMenu" style="position:absolute; display:none; background-color: 00ffdd;">
             <ul>
                 <li>Verbinden</li>
