@@ -58,6 +58,8 @@ function load(stage)
 
 function save(stage)
 {
+    console.log("not saving");
+    return;
     var papElements = [];
     stage.children.filter(isAPapElement).forEach(function(currentContainer)
     {
@@ -112,9 +114,7 @@ function createDragConnectionLine(stage)
     line.endContainer = stage;
     line.endX = 0;
     line.endY = 0;
-    line.text = new createjs.Text("", "20px Arial", "#040000");
-    line.text.regX = 0;
-    line.text.regY = 0;
+    line.text = new createjs.Text(" ", "20px Arial", "#040000");
     line.text.x = 0;
     line.text.y = 0;
     return line;
@@ -155,12 +155,16 @@ function drawArrow(stage, line)
     line.graphics.setStrokeStyle(4).beginStroke("Red").moveTo(arrowEndPoints.endX, arrowEndPoints.endY).lineTo(arrowEndPoints.x1, arrowEndPoints.y1);
     line.graphics.setStrokeStyle(4).beginStroke("Blue").moveTo(arrowEndPoints.endX, arrowEndPoints.endY).lineTo(arrowEndPoints.x2, arrowEndPoints.y2);
 
-    var b = line.text.getBounds();
-    line.text.x = (arrowEndPoints.endX+arrowEndPoints.startX)/2 - b.width/2;
-    line.text.y = (arrowEndPoints.endY+arrowEndPoints.startY)/2 - b.height/2;
-    line.text.regX = 0;
-    line.text.regY = 0;
-    line.text.rotation = arrowEndPoints.degrees;
+    if(line.text)
+    {
+        var b = line.text.getBounds();
+        line.text.x = Math.abs(arrowEndPoints.endX+arrowEndPoints.startX)/2;
+        line.text.y = Math.abs(arrowEndPoints.endY+arrowEndPoints.startY)/2;
+        line.text.regX = b.width/2;
+        line.text.regY = b.height/2;
+        line.text.rotation = arrowEndPoints.degrees;
+    }
+
 
     stage.update();
 }
@@ -426,6 +430,7 @@ function createPapConnection(stage, connectionData)
     connectionLine.text = new createjs.Text(connectionData.title + " ", "20px Arial", "#040000");
 
     connectionLine.border = new createjs.Shape();
+    connectionLine.text.textBaseline = "middle";
     connectionLine.startContainer = stage.children.find(function(currentContainer){return currentContainer.containerId == connectionData.source_id;});
     connectionLine.startX = +connectionData.source_offset_x;
     connectionLine.startY = +connectionData.source_offset_y;
