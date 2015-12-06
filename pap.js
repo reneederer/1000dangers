@@ -6,6 +6,7 @@ var borderColor = "#FFBBBB";
 var mainColor = "#FF7777";
 var selectedContainer = null;
 var stage = null;
+var font = "15px Arial";
 
 
 function init()
@@ -18,17 +19,20 @@ function init()
     document.getElementById("papText").addEventListener("input", function(evt){papTextChanged(evt);});
     dragConnectionLine = createDragConnectionLine(stage);
     stage.addChild(dragConnectionLine);
+    stage.addChild(dragConnectionLine.title);
+    stage.addChild(dragConnectionLine.border);
 }
 
 function papTextChanged(evt)
 {
-    if(!selectedContainer) {return; }
+    if(!selectedContainer) { return; }
     selectedContainer.text = document.getElementById("papText").value;
 }
 
 
 function setCanvasSize()
 {
+    //TODO this doesn't work fully yet
     var canvas = document.getElementById("canvas");
     canvas.width = document.body.clientWidth;
     canvas.height = document.body.clientHeight;
@@ -42,7 +46,6 @@ function load(stage)
         function(data, status)
         {
             var papElements = JSON.parse(data);
-            console.log(papElements[0]);
             papElements.forEach(function(currentPapElement){createPapElement(stage, currentPapElement);});
         });
 
@@ -84,7 +87,7 @@ function save(stage)
                              source_offset_y: currentConnection.startY,
                              destination_offset_x: currentConnection.endX,
                              destination_offset_y: currentConnection.endY,
-                             title: currentConnection.text.text});
+                             title: currentConnection.title.text});
     });
     $.post("test.php",
         { action: "saveConnections",
@@ -101,7 +104,7 @@ function isAConnection(element)
 
 function isAPapElement(element)
 {
-    return element.containerId || false;
+    return (element.containerId) ? true : false;
 }
 
 
@@ -114,16 +117,19 @@ function createDragConnectionLine(stage)
     line.endContainer = stage;
     line.endX = 0;
     line.endY = 0;
-    line.text = new createjs.Text(" ", "20px Arial", "#040000");
-    line.text.x = 0;
-    line.text.y = 0;
+    line.title = new createjs.Text(" ", font, "#040000");
+    line.title.x = 0;
+    line.title.y = 0;
+    line.title.regX = 0;
+    line.title.regY = 0;
+    line.border = new createjs.Shape();
+    line.title.textBaseline = "middle";
     return line;
 }
 
 
-function calculateArrowEndPoints(line)
+function calculateArrowPoints(line)
 {
-
     var startX = +line.startX + +line.startContainer.x;
     var startY = +line.startY + +line.startContainer.y;
     var endX = +line.endX + +line.endContainer.x;
@@ -143,45 +149,41 @@ function calculateArrowEndPoints(line)
     var y1 = endY + length * Math.sin(-(180-angle) * (Math.PI/180) + Math.atan(slope));
     var x2 = endX + length * Math.cos((180-angle) * (Math.PI/180) + Math.atan(slope));
     var y2 = endY + length * Math.sin((180-angle) * (Math.PI/180) + Math.atan(slope));
-    line.graphics.setStrokeDash([10, 10], 0).setStrokeStyle(4).beginStroke("Brown").moveTo(startX, startY).lineTo(500, 500);
     return {degrees:180/Math.PI * Math.atan(slope), startX:startX, startY:startY, endX:endX, endY:endY, x1:x1, y1:y1, x2:x2, y2:y2};
 }
 
 
 function drawArrow(stage, line)
 {
-    var arrowEndPoints = calculateArrowEndPoints(line);
+    var arrowEndPoints = calculateArrowPoints(line);
     line.graphics.clear();
     line.graphics.setStrokeDash().setStrokeStyle(4).beginStroke("Green").moveTo(arrowEndPoints.startX, arrowEndPoints.startY).lineTo(arrowEndPoints.endX, arrowEndPoints.endY);
     line.graphics.setStrokeStyle(4).beginStroke("Red").moveTo(arrowEndPoints.endX, arrowEndPoints.endY).lineTo(arrowEndPoints.x1, arrowEndPoints.y1);
     line.graphics.setStrokeStyle(4).beginStroke("Blue").moveTo(arrowEndPoints.endX, arrowEndPoints.endY).lineTo(arrowEndPoints.x2, arrowEndPoints.y2);
 
-    if(line.text.text == ""){ return; }
-    var b = line.text.getBounds();
-    line.text.x = Math.abs(arrowEndPoints.endX+arrowEndPoints.startX)/2;
-    line.text.y = Math.abs(arrowEndPoints.endY+arrowEndPoints.startY)/2;
-    line.text.regX = b.width/2;
-    line.text.regY = b.height/2;
-    line.text.rotation = arrowEndPoints.degrees;
-
-
+    var b = line.title.getBounds();
+    if(!b){
+        stage.update();
+        return;
+    }
+    line.title.x = Math.abs(arrowEndPoints.endX+arrowEndPoints.startX)/2;
+    line.title.y = Math.abs(arrowEndPoints.endY+arrowEndPoints.startY)/2;
+    line.title.regX = b.width/2;
+    line.title.regY = b.height/2;
+    line.title.rotation = arrowEndPoints.degrees;
     stage.update();
 }
 
 
-function createContainer(elementData)
+function getContainerBounds(text, type, innerPadding)
 {
-    //TODO add test, that this function return a container of the right size
-    //this is a pure function
-    var innerPadding = 17;
-    var text = new createjs.Text(elementData.title, "20px Arial", "#040000");
     var textBounds  = text.getBounds();
     var bounds = {};
     bounds.width = textBounds.width + 2*innerPadding + 2*borderSize;
     bounds.height = textBounds.height + 2*innerPadding + 2*borderSize;
 
     var outer = 0;
-    if(elementData.type == "Condition")
+    if(type == "Condition")
     {
         var innerS = {x:Math.cos(Math.PI/4) * (innerPadding), y:Math.sin(Math.PI/4) * (innerPadding)};
         bounds.width = textBounds .width + 2*(innerS.x + innerS.y);
@@ -191,11 +193,21 @@ function createContainer(elementData)
         bounds.width += 2*outer;
         bounds.height = bounds.width;
     }
+    return {bounds:bounds, textBounds:textBounds, outer:outer};
+}
 
-    text.x = bounds.width/2 - textBounds .width/2;
-    text.y =  bounds.height/2 - textBounds .height/2;
+
+function createContainer(elementData)
+{
+    //TODO add test, that this function return a container of the right size
+    //this is a pure function
+    var text = new createjs.Text(elementData.title, font, "#040000");
+    var containerBounds = getContainerBounds(text, elementData.type, 17);
+
+    text.x = containerBounds.bounds.width/2 - containerBounds.textBounds.width/2;
+    text.y =  containerBounds.bounds.height/2 - containerBounds.textBounds.height/2;
     text.textBaseline = "top";
-    text.on("dblclick", changeTitle);
+    text.on("dblclick", function(){changeTitle(text)});
 
     var border = new createjs.Shape();
     var shape = new createjs.Shape();
@@ -207,8 +219,8 @@ function createContainer(elementData)
         case "Start":
             // fall through
         case "End":
-            border.graphics.beginFill(borderColor).drawRoundRect(0, 0, bounds.width, bounds.height, 33);
-            shape.graphics.beginFill(mainColor).drawRoundRect(borderSize, borderSize, bounds.width-2*borderSize, bounds.height-2*borderSize, 23);
+            border.graphics.beginFill(borderColor).drawRoundRect(0, 0, containerBounds.bounds.width, containerBounds.bounds.height, 33);
+            shape.graphics.beginFill(mainColor).drawRoundRect(borderSize, borderSize, containerBounds.bounds.width-2*borderSize, containerBounds.bounds.height-2*borderSize, 23);
             container.drawBorder = function(selectContainer)
             {
                 if(container == selectContainer)
@@ -218,51 +230,54 @@ function createContainer(elementData)
                 else
                 {
                     border.graphics.clear();
-                    border.graphics.beginFill(borderColor).drawRoundRect(0, 0, bounds.width, bounds.height, 33);
+                    border.graphics.beginFill(borderColor).drawRoundRect(0, 0, containerBounds.bounds.width, containerBounds.bounds.height, 33);
                 }
             }
             break;
+
         case "Action":
-            border.graphics.beginFill(borderColor).drawRect(0, 0, bounds.width, bounds.height);
-            shape.graphics.beginFill(mainColor).drawRect(borderSize, borderSize, bounds.width-2*borderSize, bounds.height-2*borderSize);
+            border.graphics.beginFill(borderColor).drawRect(0, 0, containerBounds.bounds.width, containerBounds.bounds.height);
+            shape.graphics.beginFill(mainColor).drawRect(borderSize, borderSize, containerBounds.bounds.width-2*borderSize, containerBounds.bounds.height-2*borderSize);
             container.drawBorder = function(selectContainer)
             {
                 if(container == selectContainer)
                 {
-                    border.graphics.setStrokeStyle(borderSize).setStrokeDash([10, 10], 0).beginStroke(borderColor).setStrokeStyle(3).beginStroke(selectedColor).beginFill(borderColor).drawRect(0, 0, bounds.width, bounds.height, 23);
+                    border.graphics.setStrokeStyle(borderSize).setStrokeDash([10, 10], 0).beginStroke(borderColor).setStrokeStyle(3).beginStroke(selectedColor).beginFill(borderColor).drawRect(0, 0, containerBounds.bounds.width, containerBounds.bounds.height, 23);
                 }
                 else
                 {
                     border.graphics.clear();
-                    border.graphics.beginFill(borderColor).drawRect(0, 0, bounds.width, bounds.height);
+                    border.graphics.beginFill(borderColor).drawRect(0, 0, containerBounds.bounds.width, containerBounds.bounds.height);
                 }
             }
             break;
+
         case "Condition":
-            border.graphics.beginFill(borderColor).moveTo(4, bounds.height/2).lineTo(bounds.width/2, 4).lineTo(bounds.width-4, bounds.height/2).lineTo(bounds.width/2, bounds.height-4).lineTo(4, bounds.height/2);
-            shape.graphics.beginFill(mainColor).moveTo(outer, bounds.height/2).lineTo(bounds.width/2, outer).lineTo(bounds.width-outer, bounds.height/2).lineTo(bounds.width/2, bounds.height-outer).lineTo(outer, bounds.height/2);
+            border.graphics.beginFill(borderColor).moveTo(4, containerBounds.bounds.height/2).lineTo(containerBounds.bounds.width/2, 4).lineTo(containerBounds.bounds.width-4, containerBounds.bounds.height/2).lineTo(containerBounds.bounds.width/2, containerBounds.bounds.height-4).lineTo(4, containerBounds.bounds.height/2);
+            shape.graphics.beginFill(mainColor).moveTo(containerBounds.outer, containerBounds.bounds.height/2).lineTo(containerBounds.bounds.width/2, containerBounds.outer).lineTo(containerBounds.bounds.width-containerBounds.outer, containerBounds.bounds.height/2).lineTo(containerBounds.bounds.width/2, containerBounds.bounds.height-containerBounds.outer).lineTo(containerBounds.outer, containerBounds.bounds.height/2);
             container.drawBorder = function(selectContainer)
             {
                 if(container == selectContainer)
                 {
-                    border.graphics.setStrokeStyle(3).setStrokeDash([10, 10], 0).beginStroke(selectedColor).moveTo(0, bounds.height/2).lineTo(bounds.width/2, 0).lineTo(bounds.width-0, bounds.height/2).lineTo(bounds.width/2, bounds.height-0).lineTo(0, bounds.height/2);
+                    border.graphics.setStrokeStyle(3).setStrokeDash([10, 10], 0).beginStroke(selectedColor).moveTo(0, containerBounds.bounds.height/2).lineTo(containerBounds.bounds.width/2, 0).lineTo(containerBounds.bounds.width-0, containerBounds.bounds.height/2).lineTo(containerBounds.bounds.width/2, containerBounds.bounds.height-0).lineTo(0, containerBounds.bounds.height/2);
                 }
                 else
                 {
                     border.graphics.clear();
-                    border.graphics.beginFill(borderColor).moveTo(0, bounds.height/2).lineTo(bounds.width/2, 0).lineTo(bounds.width, bounds.height/2).lineTo(bounds.width/2, bounds.height).lineTo(0, bounds.height/2);
+                    border.graphics.beginFill(borderColor).moveTo(0, containerBounds.bounds.height/2).lineTo(containerBounds.bounds.width/2, 0).lineTo(containerBounds.bounds.width, containerBounds.bounds.height/2).lineTo(containerBounds.bounds.width/2, containerBounds.bounds.height).lineTo(0, containerBounds.bounds.height/2);
                 }
             }
             break;
+
         default:
             console.log("Data type " + elementData.type + " not found!");
     }
 
-    container.containerId = elementData.containerId;
-    container.x = elementData.x;
-    container.y = elementData.y;
-    container.width = bounds.width;
-    container.height = bounds.height;
+    container.containerId = +elementData.containerId;
+    container.x = +elementData.x;
+    container.y = +elementData.y;
+    container.width = containerBounds.bounds.width;
+    container.height = containerBounds.bounds.height;
     container.addChild(border);
     container.addChild(shape);
     container.addChild(text);
@@ -270,7 +285,6 @@ function createContainer(elementData)
     container.title = elementData.title;
     container.type = elementData.type;
     return container;
-
 }
 
 
@@ -405,17 +419,18 @@ function createPapElement(stage, elementData)
                 {
                     return isAConnection(currentConnection) && hasStartAndEndContainer(currentConnection, dragConnectionLine.startContainer, endContainer);
                 });
-        if(!isAlreadyConnected && endContainer != undefined)
+        if(!isAlreadyConnected && endContainer)
         {
-            dragConnectionLine.on("mousedown", changeTitle);
-            dragConnectionLine.text.on("mousedown", changeTitle);
-            dragConnectionLine.text.textBaseline = "middle";
-            stage.addChild(dragConnectionLine.text);
+            dragConnectionLine.on("mousedown", function(){changeTitle(dragConnectionLine)});
+            dragConnectionLine.title.on("mousedown", function(){changeTitle(dragConnectionLine)});
             dragConnectionLine.endContainer = endContainer;
             dragConnectionLine.endX = evt.stageX - dragConnectionLine.endContainer.x;
             dragConnectionLine.endY = evt.stageY - dragConnectionLine.endContainer.y;
+            changeTitle(dragConnectionLine);
             dragConnectionLine = createDragConnectionLine();
-            stage.addChildAt(dragConnectionLine, stage.numChildren-1);
+            stage.addChild(dragConnectionLine);
+            stage.addChild(dragConnectionLine.title);
+            stage.addChild(dragConnectionLine.border);
         }
         stopConnectionLineDragging(endContainer, evt.stageX, evt.stageY);
 
@@ -429,35 +444,42 @@ function createPapElement(stage, elementData)
 
 
 
-function changeTitle(){
+function changeTitle(element){
     //TODO the size of a papElement should adapt to the content
-    //TODO Bug: empty string for connectionline gives an error
-    var it = this.text.text ? this.text : this;
-    it.text = prompt("Bitte gib den neuen Titel fuer diese Verbindungslinie ein:", it.text);
-    if(it.text == "") it.text = " ";
+    var it = element;
+    if(element.title && element.title.text)
+    {
+        it = element.title;
+    }
+    var newText = prompt("Bitte gib den Titel fuer diese Verbindungslinie ein:", it.text);
+    if(newText != null ){ it.text = newText; }
     stage.update();
+}
+
+
+function createConnectionLine(connectionData, children)
+{
+    var connectionLine = new createjs.Shape();
+    connectionLine.title = new createjs.Text(connectionData.title, font, "#040000");
+    connectionLine.on("mousedown", function(){changeTitle(connectionLine)});
+    connectionLine.title.on("mousedown", function(){changeTitle(connectionLine)});
+    connectionLine.border = new createjs.Shape();
+    connectionLine.title.textBaseline = "middle";
+    connectionLine.startContainer = children.find(function(currentContainer){ return currentContainer.containerId === +connectionData.source_id;});
+    connectionLine.startX = +connectionData.source_offset_x;
+    connectionLine.startY = +connectionData.source_offset_y;
+    connectionLine.endContainer = children.find(function(currentContainer){return currentContainer.containerId === +connectionData.destination_id;});
+    connectionLine.endX = +connectionData.destination_offset_x;
+    connectionLine.endY = +connectionData.destination_offset_y;
+    return connectionLine;
 }
 
 
 function createPapConnection(stage, connectionData)
 {
-    var connectionLine = new createjs.Shape();
-    connectionLine.text = new createjs.Text(connectionData.title + " ", "20px Arial", "#040000");
-    if(connectionLine.text == "") connectionLine.text = " ";
-    connectionLine.on("mousedown", changeTitle);
-    connectionLine.text.on("mousedown", changeTitle);
-
-    connectionLine.border = new createjs.Shape();
-    connectionLine.text.textBaseline = "middle";
-    connectionLine.startContainer = stage.children.find(function(currentContainer){return currentContainer.containerId == connectionData.source_id;});
-    connectionLine.startX = +connectionData.source_offset_x;
-    connectionLine.startY = +connectionData.source_offset_y;
-    connectionLine.endContainer = stage.children.find(function(currentContainer){return currentContainer.containerId == connectionData.destination_id;});
-    connectionLine.endX = +connectionData.destination_offset_x;
-    connectionLine.endY = +connectionData.destination_offset_y;
-    var lineContainer = new createjs.Container();
+    var connectionLine = createConnectionLine(connectionData, stage.children);
     stage.addChild(connectionLine);
-    stage.addChild(connectionLine.text);
+    stage.addChild(connectionLine.title);
     stage.addChild(connectionLine.border);
     drawArrow(stage, connectionLine);
     stage.update();
