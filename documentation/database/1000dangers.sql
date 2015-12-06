@@ -12,10 +12,10 @@ create table papconnection(source_id int, destination_id int, 1000dangersbook_id
 insert into team(id, name, password) values(1, "rene", "1234");
 insert into 1000dangersbook(id, team_id, name, creationdate) values(1, 1, "1000 Gefahren", now());
 insert into paptype(id, name) values(1, "Start"), (2, "End"), (3, "Action"), (4, "Condition");
-insert into papelement(id, 1000dangersbook_id, paptype_id, x, y, title, text) values(1, 1, 1, 20, 200, "Start", "Kein Text");
-insert into papelement(id, 1000dangersbook_id, paptype_id, x, y, title, text) values(2, 1, 2, 60, 300, "Titel", "Text");
-insert into papelement(id, 1000dangersbook_id, paptype_id, x, y, title, text) values(3, 1, 3, 180, 400, "Meine Aktion", "Mein Text");
-insert into papelement(id, 1000dangersbook_id, paptype_id, x, y, title, text) values(4, 1, 4, 180, 400, "Willst du Bananen sammeln gehen?", "Willst du wirklich schon Bananen sammeln gehen?");
+insert into papelement(id, 1000dangersbook_id, paptype_id, x, y, title, text) values(1, 1, 1, 20, 200, "Start", "");
+insert into papelement(id, 1000dangersbook_id, paptype_id, x, y, title, text) values(2, 1, 2, 60, 300, "Ende", "");
+insert into papelement(id, 1000dangersbook_id, paptype_id, x, y, title, text) values(3, 1, 3, 180, 400, "Insel gestrandet", "Du hast Schiffbruch erlitten. Nachdem du dich auf eine einsame Insel gerettet hast, begegnen dir 5 Kannibalen.");
+insert into papelement(id, 1000dangersbook_id, paptype_id, x, y, title, text) values(4, 1, 4, 180, 400, "Kannibalen kennenlernen?", "Moechtest du dich erstmal mit den Kannibalen anfreunden?");
 insert into papconnection(source_id, destination_id, 1000dangersbook_id, source_offset_x, source_offset_y, destination_offset_x, destination_offset_y, title) values(1, 2, 1, 0, 0, 0, 0, "Eine Verbindung");
 insert into papconnection(source_id, destination_id, 1000dangersbook_id, source_offset_x, source_offset_y, destination_offset_x, destination_offset_y, title) values(1, 3, 1, 0, 0, 0, 0, "Titel der Verbindung");
 insert into papconnection(source_id, destination_id, 1000dangersbook_id, source_offset_x, source_offset_y, destination_offset_x, destination_offset_y, title) values(2, 4, 1, 0, 0, 0, 0, "Verbindungstitel");
