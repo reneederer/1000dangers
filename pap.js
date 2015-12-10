@@ -6,7 +6,7 @@ var borderColor = "#FFBBBB";
 var mainColor = "#FF7777";
 var selectedContainer = null;
 var stage = null;
-var font = "15px Arial";
+var font = "11px Arial";
 
 
 function init()
@@ -61,8 +61,8 @@ function load(stage)
 
 function save(stage)
 {
-    console.log("not saving");
-    return;
+    //console.log("not saving");
+    //return;
     var papElements = [];
     stage.children.filter(isAPapElement).forEach(function(currentContainer)
     {
@@ -421,20 +421,20 @@ function createPapElement(stage, elementData)
                 });
         if(!isAlreadyConnected && endContainer)
         {
-            dragConnectionLine.on("mousedown", function(){changeTitle(dragConnectionLine)});
-            dragConnectionLine.title.on("mousedown", function(){changeTitle(dragConnectionLine)});
+            var d = dragConnectionLine;
             dragConnectionLine.endContainer = endContainer;
             dragConnectionLine.endX = evt.stageX - dragConnectionLine.endContainer.x;
             dragConnectionLine.endY = evt.stageY - dragConnectionLine.endContainer.y;
-            changeTitle(dragConnectionLine);
+            dragConnectionLine.on("dblclick", function(){changeTitle(dragConnectionLine)});
+            dragConnectionLine.title.on("dblclick", function(){changeTitle(dragConnectionLine)});
             dragConnectionLine = createDragConnectionLine();
             stage.addChild(dragConnectionLine);
             stage.addChild(dragConnectionLine.title);
             stage.addChild(dragConnectionLine.border);
+            stage.update();
+            changeTitle(d);
         }
         stopConnectionLineDragging(endContainer, evt.stageX, evt.stageY);
-
-
         dragConnectionLine.graphics.clear();
         stage.update();
     });
