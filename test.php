@@ -1,11 +1,19 @@
 <?php
 session_start();
+$_SESSION['team_id'] = 1;
+$_SESSION['1000dangersbook_name'] = '1000 Gefahren';
 
 require('dbconnection.php');
 
 if(!isset($_POST['action']))
 {
     return;
+}
+
+
+if($_POST['action'] == 'loadOptions')
+{
+    echo file_get_contents('options.json');    
 }
 
 if($_POST['action'] == 'loadPapElements')

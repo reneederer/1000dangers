@@ -1,12 +1,8 @@
 'use strict';
 var dragConnectionLine = null;
-var borderSize = 25;
-var selectedColor = "#FF00FF";
-var borderColor = "#FFBBBB";
-var mainColor = "#FF7777";
 var selectedContainer = null;
 var stage = null;
-var font = "11px Arial";
+var options = null;
 
 
 function init()
@@ -15,12 +11,6 @@ function init()
     stage = new createjs.Stage("canvas");
 
     load(stage);
-    $(window).on('beforeunload', function(){save(stage);});
-    document.getElementById("papText").addEventListener("input", function(evt){papTextChanged(evt);});
-    dragConnectionLine = createDragConnectionLine(stage);
-    stage.addChild(dragConnectionLine);
-    stage.addChild(dragConnectionLine.title);
-    stage.addChild(dragConnectionLine.border);
 }
 
 function papTextChanged(evt)
@@ -34,27 +24,51 @@ function setCanvasSize()
 {
     //TODO this doesn't work fully yet
     var canvas = document.getElementById("canvas");
-    canvas.width = document.body.clientWidth;
-    canvas.height = document.body.clientHeight;
+    canvas.width = parseInt(document.body.style.width);
+    canvas.height = parseInt(document.body.style.height);
 }
 
 
 function load(stage)
 {
     $.post("test.php",
-        {action: "loadPapElements"},
+        {action: "loadOptions"},
         function(data, status)
         {
-            var papElements = JSON.parse(data);
-            papElements.forEach(function(currentPapElement){createPapElement(stage, currentPapElement);});
-        });
+            options = new Object(JSON.parse(data));
+            var papText = document.getElementById("papText");
+            papText.addEventListener("input", function(evt){papTextChanged(evt);});
+            papText.style.font = options.font;
 
-    $.post("test.php",
-        {action: "loadConnections"},
-        function(data, status)
-        {
-            var papConnections = JSON.parse(data);
-            papConnections.forEach(function(currentPapConnection){createPapConnection(stage, currentPapConnection);});
+
+            $.post("test.php",
+                    {action: "loadPapElements"},
+                    function(data, status)
+                    {
+                            var papElements = JSON.parse(data);
+                            papElements.forEach(function(currentPapElement){createPapElement(stage, currentPapElement);});
+
+                            $.post("test.php",
+                                    {action: "loadConnections"},
+                                    function(data, status)
+                                    {
+                                            var papConnections = JSON.parse(data);
+                                            papConnections.forEach(function(currentPapConnection){createPapConnection(stage, currentPapConnection);});
+                                            $(window).on('beforeunload', function(){save(stage);});
+                                            dragConnectionLine = createDragConnectionLine(stage);
+                                            stage.addChild(dragConnectionLine);
+                                            stage.addChild(dragConnectionLine.title);
+                                            stage.addChild(dragConnectionLine.border);
+                                            $(window).bind('keydown', function(event) {
+                                                    if (event.ctrlKey || event.metaKey
+                                                            && String.fromCharCode(event.which).toLowerCase() == 's')
+                                                    {
+                                                            event.preventDefault();
+                                                            save(stage);
+                                                    }
+                                            });
+                                    });
+                    });
         });
 }
 
@@ -117,7 +131,7 @@ function createDragConnectionLine(stage)
     line.endContainer = stage;
     line.endX = 0;
     line.endY = 0;
-    line.title = new createjs.Text(" ", font, "#040000");
+    line.title = new createjs.Text(" ", options.font, "#040000");
     line.title.x = 0;
     line.title.y = 0;
     line.title.regX = 0;
@@ -130,6 +144,7 @@ function createDragConnectionLine(stage)
 
 function calculateArrowPoints(line)
 {
+//TODO sometimes error startContainer undefined...
     var startX = +line.startX + +line.startContainer.x;
     var startY = +line.startY + +line.startContainer.y;
     var endX = +line.endX + +line.endContainer.x;
@@ -155,6 +170,11 @@ function calculateArrowPoints(line)
 
 function drawArrow(stage, line)
 {
+    //TODO startContainer is sometimes null, but I don't yet understand why    
+    if(!line.startContainer || !line.endContainer)
+    {
+        return;    
+    }    
     var arrowEndPoints = calculateArrowPoints(line);
     line.graphics.clear();
     line.graphics.setStrokeDash().setStrokeStyle(4).beginStroke("Green").moveTo(arrowEndPoints.startX, arrowEndPoints.startY).lineTo(arrowEndPoints.endX, arrowEndPoints.endY);
@@ -179,16 +199,16 @@ function getContainerBounds(text, type, innerPadding)
 {
     var textBounds  = text.getBounds();
     var bounds = {};
-    bounds.width = textBounds.width + 2*innerPadding + 2*borderSize;
-    bounds.height = textBounds.height + 2*innerPadding + 2*borderSize;
+    bounds.width = textBounds.width + 2*innerPadding + 2*options.borderSize;
+    bounds.height = textBounds.height + 2*innerPadding + 2*options.borderSize;
 
     var outer = 0;
     if(type == "Condition")
     {
         var innerS = {x:Math.cos(Math.PI/4) * (innerPadding), y:Math.sin(Math.PI/4) * (innerPadding)};
-        bounds.width = textBounds .width + 2*(innerS.x + innerS.y);
+        bounds.width = textBounds.width + 2*(innerS.x + innerS.y);
         bounds.height = bounds.width;
-        var outerS = {x:Math.cos(Math.PI/4) * (borderSize) , y:Math.sin(Math.PI/4) * (borderSize)};
+        var outerS = {x:Math.cos(Math.PI/4) * (options.borderSize) , y:Math.sin(Math.PI/4) * (options.borderSize)};
         outer = outerS.x + outerS.y;
         bounds.width += 2*outer;
         bounds.height = bounds.width;
@@ -201,7 +221,7 @@ function createContainer(elementData)
 {
     //TODO add test, that this function return a container of the right size
     //this is a pure function
-    var text = new createjs.Text(elementData.title, font, "#040000");
+    var text = new createjs.Text(elementData.title, options.font, "#040000");
     var containerBounds = getContainerBounds(text, elementData.type, 17);
 
     text.x = containerBounds.bounds.width/2 - containerBounds.textBounds.width/2;
@@ -219,52 +239,52 @@ function createContainer(elementData)
         case "Start":
             // fall through
         case "End":
-            border.graphics.beginFill(borderColor).drawRoundRect(0, 0, containerBounds.bounds.width, containerBounds.bounds.height, 33);
-            shape.graphics.beginFill(mainColor).drawRoundRect(borderSize, borderSize, containerBounds.bounds.width-2*borderSize, containerBounds.bounds.height-2*borderSize, 23);
+            border.graphics.beginFill(options.borderColor).drawRoundRect(0, 0, containerBounds.bounds.width, containerBounds.bounds.height, 33);
+            shape.graphics.beginFill(options.mainColor).drawRoundRect(options.borderSize, options.borderSize, containerBounds.bounds.width-2*options.borderSize, containerBounds.bounds.height-2*options.borderSize, 23);
             container.drawBorder = function(selectContainer)
             {
                 if(container == selectContainer)
                 {
-                    border.graphics.setStrokeStyle(borderSize).beginStroke(borderColor).setStrokeDash([10, 10], 0).setStrokeStyle(3).beginStroke(selectedColor).beginFill(borderColor).drawRoundRect(0, 0, container.width, container.height, 33);
+                    border.graphics.setStrokeStyle(options.borderSize).beginStroke(options.borderColor).setStrokeDash([10, 10], 0).setStrokeStyle(3).beginStroke(options.selectedColor).beginFill(options.borderColor).drawRoundRect(0, 0, container.width, container.height, 33);
                 }
                 else
                 {
                     border.graphics.clear();
-                    border.graphics.beginFill(borderColor).drawRoundRect(0, 0, containerBounds.bounds.width, containerBounds.bounds.height, 33);
+                    border.graphics.beginFill(options.borderColor).drawRoundRect(0, 0, containerBounds.bounds.width, containerBounds.bounds.height, 33);
                 }
             }
             break;
 
         case "Action":
-            border.graphics.beginFill(borderColor).drawRect(0, 0, containerBounds.bounds.width, containerBounds.bounds.height);
-            shape.graphics.beginFill(mainColor).drawRect(borderSize, borderSize, containerBounds.bounds.width-2*borderSize, containerBounds.bounds.height-2*borderSize);
+            border.graphics.beginFill(options.borderColor).drawRect(0, 0, containerBounds.bounds.width, containerBounds.bounds.height);
+            shape.graphics.beginFill(options.mainColor).drawRect(options.borderSize, options.borderSize, containerBounds.bounds.width-2*options.borderSize, containerBounds.bounds.height-2*options.borderSize);
             container.drawBorder = function(selectContainer)
             {
                 if(container == selectContainer)
                 {
-                    border.graphics.setStrokeStyle(borderSize).setStrokeDash([10, 10], 0).beginStroke(borderColor).setStrokeStyle(3).beginStroke(selectedColor).beginFill(borderColor).drawRect(0, 0, containerBounds.bounds.width, containerBounds.bounds.height, 23);
+                    border.graphics.setStrokeStyle(options.borderSize).setStrokeDash([10, 10], 0).beginStroke(options.borderColor).setStrokeStyle(3).beginStroke(options.selectedColor).beginFill(options.borderColor).drawRect(0, 0, containerBounds.bounds.width, containerBounds.bounds.height, 23);
                 }
                 else
                 {
                     border.graphics.clear();
-                    border.graphics.beginFill(borderColor).drawRect(0, 0, containerBounds.bounds.width, containerBounds.bounds.height);
+                    border.graphics.beginFill(options.borderColor).drawRect(0, 0, containerBounds.bounds.width, containerBounds.bounds.height);
                 }
             }
             break;
 
         case "Condition":
-            border.graphics.beginFill(borderColor).moveTo(4, containerBounds.bounds.height/2).lineTo(containerBounds.bounds.width/2, 4).lineTo(containerBounds.bounds.width-4, containerBounds.bounds.height/2).lineTo(containerBounds.bounds.width/2, containerBounds.bounds.height-4).lineTo(4, containerBounds.bounds.height/2);
-            shape.graphics.beginFill(mainColor).moveTo(containerBounds.outer, containerBounds.bounds.height/2).lineTo(containerBounds.bounds.width/2, containerBounds.outer).lineTo(containerBounds.bounds.width-containerBounds.outer, containerBounds.bounds.height/2).lineTo(containerBounds.bounds.width/2, containerBounds.bounds.height-containerBounds.outer).lineTo(containerBounds.outer, containerBounds.bounds.height/2);
+            border.graphics.beginFill(options.borderColor).moveTo(4, containerBounds.bounds.height/2).lineTo(containerBounds.bounds.width/2, 4).lineTo(containerBounds.bounds.width-4, containerBounds.bounds.height/2).lineTo(containerBounds.bounds.width/2, containerBounds.bounds.height-4).lineTo(4, containerBounds.bounds.height/2);
+            shape.graphics.beginFill(options.mainColor).moveTo(containerBounds.outer, containerBounds.bounds.height/2).lineTo(containerBounds.bounds.width/2, containerBounds.outer).lineTo(containerBounds.bounds.width-containerBounds.outer, containerBounds.bounds.height/2).lineTo(containerBounds.bounds.width/2, containerBounds.bounds.height-containerBounds.outer).lineTo(containerBounds.outer, containerBounds.bounds.height/2);
             container.drawBorder = function(selectContainer)
             {
                 if(container == selectContainer)
                 {
-                    border.graphics.setStrokeStyle(3).setStrokeDash([10, 10], 0).beginStroke(selectedColor).moveTo(0, containerBounds.bounds.height/2).lineTo(containerBounds.bounds.width/2, 0).lineTo(containerBounds.bounds.width-0, containerBounds.bounds.height/2).lineTo(containerBounds.bounds.width/2, containerBounds.bounds.height-0).lineTo(0, containerBounds.bounds.height/2);
+                    border.graphics.setStrokeStyle(3).setStrokeDash([10, 10], 0).beginStroke(options.selectedColor).moveTo(0, containerBounds.bounds.height/2).lineTo(containerBounds.bounds.width/2, 0).lineTo(containerBounds.bounds.width-0, containerBounds.bounds.height/2).lineTo(containerBounds.bounds.width/2, containerBounds.bounds.height-0).lineTo(0, containerBounds.bounds.height/2);
                 }
                 else
                 {
                     border.graphics.clear();
-                    border.graphics.beginFill(borderColor).moveTo(0, containerBounds.bounds.height/2).lineTo(containerBounds.bounds.width/2, 0).lineTo(containerBounds.bounds.width, containerBounds.bounds.height/2).lineTo(containerBounds.bounds.width/2, containerBounds.bounds.height).lineTo(0, containerBounds.bounds.height/2);
+                    border.graphics.beginFill(options.borderColor).moveTo(0, containerBounds.bounds.height/2).lineTo(containerBounds.bounds.width/2, 0).lineTo(containerBounds.bounds.width, containerBounds.bounds.height/2).lineTo(containerBounds.bounds.width/2, containerBounds.bounds.height).lineTo(0, containerBounds.bounds.height/2);
                 }
             }
             break;
@@ -374,7 +394,8 @@ function createPapElement(stage, elementData)
 
     var isConnectionLineDragging = function()
     {
-        return dragConnectionLine.startContainer != stage;
+        //TODO is this a hack? Intended to prevent an error when loading//TODO is this a hack? Intended to prevent an error when loading.    
+        return dragConnectionLine && dragConnectionLine.startContainer != stage;
     };
     var stopConnectionLineDragging = function()
     {
@@ -400,6 +421,7 @@ function createPapElement(stage, elementData)
         var containerBounds = container.getBounds();
         if(container.x + containerBounds.width > +document.body.style.width)
         {
+            alert("Vergroessern!");
             canvas.width = containerBounds.width + container.x;
             document.body.style.width = canvas.width;
             window.scrollBy(canvas.width, 0);
@@ -460,7 +482,7 @@ function changeTitle(element){
 function createConnectionLine(connectionData, children)
 {
     var connectionLine = new createjs.Shape();
-    connectionLine.title = new createjs.Text(connectionData.title, font, "#040000");
+    connectionLine.title = new createjs.Text(connectionData.title, options.font, "#040000");
     connectionLine.on("mousedown", function(){changeTitle(connectionLine)});
     connectionLine.title.on("mousedown", function(){changeTitle(connectionLine)});
     connectionLine.border = new createjs.Shape();

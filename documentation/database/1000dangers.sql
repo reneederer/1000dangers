@@ -1,3 +1,4 @@
+create database if not exists 1998294_db;
 use 1998294_db;
 drop table if exists papconnection;
 drop table if exists papelement;

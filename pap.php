@@ -2,7 +2,7 @@
     session_start();
     if(!isset($_SESSION['team_id']))
     {
-        header('Location: login.php');
+//        header('Location: login.php');
     }
 
 ?>
@@ -30,11 +30,11 @@ QUnit.test("Testet smallerThanSeven!!", function(assert)
 });
         </script>
     </head>
-    <body onload="init();">
+    <body onload="init();" style="width:10000px; height:10000px">
         <div id="qunit"></div>
         <div id="qunit-fixture"></div>
         <canvas id="canvas"></canvas>
-        <div id="textDiv" style="position:absolute; right:0; top:0; width:500; height: 500; background-color: 00ffdd;">
+        <div id="textDiv" style="position:fixed; right:0; top:0; width:500; height: 500; background-color: 00ffdd;">
             <input type="text" id="papTitle"></input>
             <textarea id="papText" rows="5" cols="6" style="width:100%; height:100%; vertical-align:top; display:block;"></textarea>
         </div>
@@ -48,3 +48,7 @@ QUnit.test("Testet smallerThanSeven!!", function(assert)
         </div>
     </body>
 </html>
+
+
+
+
