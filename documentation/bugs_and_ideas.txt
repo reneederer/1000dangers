@@ -1,3 +1,0 @@
-set correct body-width size after start
-vertical scroll expansion
-allow user to change papelement title
