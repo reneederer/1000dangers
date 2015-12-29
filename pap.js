@@ -3,6 +3,7 @@ var dragConnectionLine = null;
 var selectedContainer = null;
 var stage = null;
 var options = null;
+var choices = [];
 
 
 function init()
@@ -22,54 +23,76 @@ function papTextChanged(evt)
 
 function setCanvasSize()
 {
-    //TODO this doesn't work fully yet
     var canvas = document.getElementById("canvas");
     canvas.width = parseInt(document.body.style.width);
     canvas.height = parseInt(document.body.style.height);
 }
 
-
 function load(stage)
 {
     $.post("test.php",
-        {action: "loadOptions"},
+        {action: "load"},
         function(data, status)
         {
-            options = new Object(JSON.parse(data));
+            var loaded = new Object(JSON.parse(data));
+            options = loaded.options;
             var papText = document.getElementById("papText");
             papText.addEventListener("input", function(evt){papTextChanged(evt);});
             papText.style.font = options.font;
 
+            var papElements = loaded.papElements;
+            papElements.forEach(function(currentPapElement){createPapElement(stage, currentPapElement);});
 
-            $.post("test.php",
-                    {action: "loadPapElements"},
-                    function(data, status)
+            var papConnections = loaded.papConnections;
+            papConnections.forEach(function(currentPapConnection){createPapConnection(stage, currentPapConnection);});
+            $(window).on('beforeunload', function(){save(stage);});
+            dragConnectionLine = createDragConnectionLine(stage);
+            stage.addChild(dragConnectionLine);
+            stage.addChild(dragConnectionLine.title);
+            stage.addChild(dragConnectionLine.border);
+            var startElement = stage.children.find(function(el){return el.type == "Start";});
+            if(startElement) nextBookText(startElement.containerId);
+            $(window).bind('keydown', function(event) {
+                    if (event.ctrlKey || event.metaKey
+                            && String.fromCharCode(event.which).toLowerCase() == 's')
                     {
-                            var papElements = JSON.parse(data);
-                            papElements.forEach(function(currentPapElement){createPapElement(stage, currentPapElement);});
-
-                            $.post("test.php",
-                                    {action: "loadConnections"},
-                                    function(data, status)
-                                    {
-                                            var papConnections = JSON.parse(data);
-                                            papConnections.forEach(function(currentPapConnection){createPapConnection(stage, currentPapConnection);});
-                                            $(window).on('beforeunload', function(){save(stage);});
-                                            dragConnectionLine = createDragConnectionLine(stage);
-                                            stage.addChild(dragConnectionLine);
-                                            stage.addChild(dragConnectionLine.title);
-                                            stage.addChild(dragConnectionLine.border);
-                                            $(window).bind('keydown', function(event) {
-                                                    if (event.ctrlKey || event.metaKey
-                                                            && String.fromCharCode(event.which).toLowerCase() == 's')
-                                                    {
-                                                            event.preventDefault();
-                                                            save(stage);
-                                                    }
-                                            });
-                                    });
-                    });
+                            event.preventDefault();
+                            save(stage);
+                    }
+            });
+            stage.update();
         });
+}
+
+
+function nextBookText(elementId, nextElementId)
+{
+    choices.push(elementId);
+    //alert(choices.join(", "));
+    var bookDiv = document.getElementById("book");
+    var el = nextElementId ? stage.children.find(function(e){return e.containerId === nextElementId;})
+        : getElement(stage, elementId);
+    var counter = 0;
+    
+    for(var i = 0; i < 1000 && el; ++i)
+    {
+        bookDiv.innerHTML = bookDiv.innerHTML + el.text + "<br><br>";
+        if(el.type == "Condition")
+        {
+            stage.children.filter(isAConnection).filter(function(currentElement){ return currentElement.startContainer.containerId === el.containerId;}).forEach(function(currentElement){bookDiv.innerHTML += "<a href='javascript:nextBookText(" + el.containerId + ", " + currentElement.endContainer.containerId + ");'>" + currentElement.title.text + "</a><br><br>";});
+            return;
+        }
+        el = getElement(stage, el.containerId);
+    }
+}
+
+
+
+function getElement(stage, elementId)
+{
+    var element = stage.children.find(function(el){return el.startContainer && el.startContainer.containerId == elementId;});
+    return element ? element.endContainer : undefined;
+
 }
 
 
@@ -80,18 +103,13 @@ function save(stage)
     var papElements = [];
     stage.children.filter(isAPapElement).forEach(function(currentContainer)
     {
-        papElements.push({id: currentContainer.containerId,
+        papElements.push({id:currentContainer.containerId,
                           x:currentContainer.x,
                           y:currentContainer.y,
                           type:currentContainer.type,
                           title:currentContainer.title,
                           text:currentContainer.text});
     });
-    $.post("test.php",
-        { action: "savePapElements",
-          papElements: JSON.stringify(papElements) },
-        function(data, status){});
-
     var papConnections = [];
     stage.children.filter(isAConnection).forEach(function(currentConnection)
     {
@@ -103,10 +121,12 @@ function save(stage)
                              destination_offset_y: currentConnection.endY,
                              title: currentConnection.title.text});
     });
+    var paps = {"elements" : papElements, "connections" : papConnections};
     $.post("test.php",
-        { action: "saveConnections",
-          papConnections: JSON.stringify(papConnections) },
+        { action: "save",
+          pap: JSON.stringify(paps) },
         function(data, status){;});
+
 }
 
 
@@ -144,7 +164,6 @@ function createDragConnectionLine(stage)
 
 function calculateArrowPoints(line)
 {
-//TODO sometimes error startContainer undefined...
     var startX = +line.startX + +line.startContainer.x;
     var startY = +line.startY + +line.startContainer.y;
     var endX = +line.endX + +line.endContainer.x;
@@ -170,11 +189,6 @@ function calculateArrowPoints(line)
 
 function drawArrow(stage, line)
 {
-    //TODO startContainer is sometimes null, but I don't yet understand why    
-    if(!line.startContainer || !line.endContainer)
-    {
-        return;    
-    }    
     var arrowEndPoints = calculateArrowPoints(line);
     line.graphics.clear();
     line.graphics.setStrokeDash().setStrokeStyle(4).beginStroke("Green").moveTo(arrowEndPoints.startX, arrowEndPoints.startY).lineTo(arrowEndPoints.endX, arrowEndPoints.endY);
@@ -241,9 +255,9 @@ function createContainer(elementData)
         case "End":
             border.graphics.beginFill(options.borderColor).drawRoundRect(0, 0, containerBounds.bounds.width, containerBounds.bounds.height, 33);
             shape.graphics.beginFill(options.mainColor).drawRoundRect(options.borderSize, options.borderSize, containerBounds.bounds.width-2*options.borderSize, containerBounds.bounds.height-2*options.borderSize, 23);
-            container.drawBorder = function(selectContainer)
+            container.drawBorder = function(containerToSelect)
             {
-                if(container == selectContainer)
+                if(container == containerToSelect)
                 {
                     border.graphics.setStrokeStyle(options.borderSize).beginStroke(options.borderColor).setStrokeDash([10, 10], 0).setStrokeStyle(3).beginStroke(options.selectedColor).beginFill(options.borderColor).drawRoundRect(0, 0, container.width, container.height, 33);
                 }
@@ -258,9 +272,9 @@ function createContainer(elementData)
         case "Action":
             border.graphics.beginFill(options.borderColor).drawRect(0, 0, containerBounds.bounds.width, containerBounds.bounds.height);
             shape.graphics.beginFill(options.mainColor).drawRect(options.borderSize, options.borderSize, containerBounds.bounds.width-2*options.borderSize, containerBounds.bounds.height-2*options.borderSize);
-            container.drawBorder = function(selectContainer)
+            container.drawBorder = function(containerToSelect)
             {
-                if(container == selectContainer)
+                if(container == containerToSelect)
                 {
                     border.graphics.setStrokeStyle(options.borderSize).setStrokeDash([10, 10], 0).beginStroke(options.borderColor).setStrokeStyle(3).beginStroke(options.selectedColor).beginFill(options.borderColor).drawRect(0, 0, containerBounds.bounds.width, containerBounds.bounds.height, 23);
                 }
@@ -275,9 +289,9 @@ function createContainer(elementData)
         case "Condition":
             border.graphics.beginFill(options.borderColor).moveTo(4, containerBounds.bounds.height/2).lineTo(containerBounds.bounds.width/2, 4).lineTo(containerBounds.bounds.width-4, containerBounds.bounds.height/2).lineTo(containerBounds.bounds.width/2, containerBounds.bounds.height-4).lineTo(4, containerBounds.bounds.height/2);
             shape.graphics.beginFill(options.mainColor).moveTo(containerBounds.outer, containerBounds.bounds.height/2).lineTo(containerBounds.bounds.width/2, containerBounds.outer).lineTo(containerBounds.bounds.width-containerBounds.outer, containerBounds.bounds.height/2).lineTo(containerBounds.bounds.width/2, containerBounds.bounds.height-containerBounds.outer).lineTo(containerBounds.outer, containerBounds.bounds.height/2);
-            container.drawBorder = function(selectContainer)
+            container.drawBorder = function(containerToSelect)
             {
-                if(container == selectContainer)
+                if(container == containerToSelect)
                 {
                     border.graphics.setStrokeStyle(3).setStrokeDash([10, 10], 0).beginStroke(options.selectedColor).moveTo(0, containerBounds.bounds.height/2).lineTo(containerBounds.bounds.width/2, 0).lineTo(containerBounds.bounds.width-0, containerBounds.bounds.height/2).lineTo(containerBounds.bounds.width/2, containerBounds.bounds.height-0).lineTo(0, containerBounds.bounds.height/2);
                 }
@@ -342,8 +356,10 @@ function createPapElement(stage, elementData)
 {
     var container = createContainer(elementData);
     var containerDragOffset = {x:0, y:0};
+    var isContainerDragging = false;
     var startDrag = function(container, posX, posY)
     {
+        console.log("Dragging started");
         var isContainer = function(container, posX, posY)
         {
             var pt = container.getChildAt(1).globalToLocal(posX, posY);
@@ -353,6 +369,7 @@ function createPapElement(stage, elementData)
         {
             containerDragOffset.x = posX - container.x;
             containerDragOffset.y = posY - container.y;
+            isContainerDragging = true;
         }
         else
         {
@@ -366,13 +383,15 @@ function createPapElement(stage, elementData)
     }
     var dragTo = function(draggingContainer, posX, posY)
     {
+        console.log("drag");
         if(isConnectionLineDragging())
         {
             dragConnectionLine.endX = posX;
             dragConnectionLine.endY = posY;
+            console.log("Arrow drawn" + dragConnectionLine.startContainer);
             drawArrow(stage, dragConnectionLine);
         }
-        else
+        else if(isContainerDragging)
         {
             draggingContainer.x = posX - containerDragOffset.x;
             draggingContainer.y = posY - containerDragOffset.y;
@@ -394,8 +413,7 @@ function createPapElement(stage, elementData)
 
     var isConnectionLineDragging = function()
     {
-        //TODO is this a hack? Intended to prevent an error when loading//TODO is this a hack? Intended to prevent an error when loading.    
-        return dragConnectionLine && dragConnectionLine.startContainer != stage;
+        return !isContainerDragging && dragConnectionLine && dragConnectionLine.startContainer && dragConnectionLine.startContainer != stage;
     };
     var stopConnectionLineDragging = function()
     {
@@ -426,7 +444,6 @@ function createPapElement(stage, elementData)
             document.body.style.width = canvas.width;
             window.scrollBy(canvas.width, 0);
         }
-        stage.update();
     });
 
     container.on("pressup", function(evt) {
@@ -458,10 +475,10 @@ function createPapElement(stage, elementData)
         }
         stopConnectionLineDragging(endContainer, evt.stageX, evt.stageY);
         dragConnectionLine.graphics.clear();
+        isContainerDragging = false;
         stage.update();
     });
     stage.addChild(container);
-    stage.update();
 }
 
 
@@ -504,7 +521,6 @@ function createPapConnection(stage, connectionData)
     stage.addChild(connectionLine.title);
     stage.addChild(connectionLine.border);
     drawArrow(stage, connectionLine);
-    stage.update();
 }
 
 

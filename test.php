@@ -11,29 +11,19 @@ if(!isset($_POST['action']))
 }
 
 
-if($_POST['action'] == 'loadOptions')
+if($_POST['action'] == 'load')
 {
-    echo file_get_contents('options.json');    
-}
-
-if($_POST['action'] == 'loadPapElements')
-{
+    $options = file_get_contents('options.json');    
     $papElements = loadPapElements();
-    echo json_encode($papElements);
-
-}
-else if($_POST['action'] == 'loadConnections')
-{
     $papConnections = loadPapConnections();
-    echo json_encode($papConnections);
+    $re = array('options' => json_decode($options), 'papElements' => $papElements, 'papConnections' => $papConnections);
+    echo json_encode($re);
 }
-else if($_POST['action'] == 'savePapElements')
+else if($_POST['action'] == 'save')
 {
-    savePapElements(json_decode($_POST['papElements'], true));
-}
-else if($_POST['action'] == 'saveConnections')
-{
-    savePapConnections(json_decode($_POST['papConnections'], true));
+    $pap = json_decode($_POST['pap'], true);
+    savePapElements($pap['elements']);
+    savePapConnections($pap['connections']);
 }
 
 
