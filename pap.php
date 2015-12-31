@@ -30,7 +30,7 @@ QUnit.test("Testet smallerThanSeven!!", function(assert)
 });
         </script>
     </head>
-    <body onload="init();" style="width:10000px; height:10000px">
+    <body onload="init();" oncontextmenu="return false;" style="width:10000px; height:10000px">
         <div id="qunit"></div>
         <div id="qunit-fixture"></div>
         <div id="book" style="width:500; height:500; overflow-x:scroll; overflow-y:scroll;"></div>
@@ -42,9 +42,8 @@ QUnit.test("Testet smallerThanSeven!!", function(assert)
         <div id="contextMenu" style="position:absolute; display:none; background-color: 00ffdd;">
             <ul>
                 <li>Verbinden</li>
-<!-- TODO oe aendern -->
-                <li>Loeschen</li>
-                <li>Aendern</li>
+                <li>L&ouml;schen</li>
+                <li>&Auml;ndern</li>
             </ul>
         </div>
     </body>
