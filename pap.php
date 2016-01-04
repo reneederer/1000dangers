@@ -1,8 +1,12 @@
 <?php
     session_start();
-    if(!isset($_SESSION['team_id']))
+    if(!isset($_SESSION['user_id']))
     {
-//        header('Location: login.php');
+        header('Location: login.php');
+    }
+    if(!isset($_SESSION['1000dangersbook_name']))
+    {
+        header('Location: welcome.php');
     }
 
 ?>
@@ -12,25 +16,12 @@
         <link rel="stylesheet" href="qunit.css"></link>
         <script src="https://code.createjs.com/easeljs-0.8.1.min.js"></script>
         <script src="pap.js"></script>
+        <!--script src="papelement.js"></script>
+        <script src="papconnection.js"></script-->
         <script src="jquery.js"></script>
         <script src="qunit.js"></script>
-        <script>
-            function smallerThan7(x)
-            {
-                return x < 7;
-            }
-        </script>
-        <script>
-QUnit.test("Testet smallerThanSeven!!", function(assert)
-{
-    assert.ok(smallerThan7(3) == true, "Passed");
-    assert.ok(smallerThan7(8) == false, "Passed");
-    assert.ok(smallerThan7(6) == true, "Passed");
-    assert.ok(smallerThan7(5) == true, "Passed");
-});
-        </script>
     </head>
-    <body onload="init();" oncontextmenu="return false;" style="width:10000px; height:10000px">
+    <body onload="dangerbook.init();" oncontextmenu="return false;" style="width:10000px; height:10000px">
         <div id="qunit"></div>
         <div id="qunit-fixture"></div>
         <div id="book" style="width:500; height:500; overflow-x:scroll; overflow-y:scroll;"></div>
@@ -41,13 +32,30 @@ QUnit.test("Testet smallerThanSeven!!", function(assert)
         </div>
         <div id="contextMenu" style="position:absolute; display:none; background-color: 00ffdd;">
             <ul>
-                <li>Verbinden</li>
+                <li>Neu</li>
+            </ul>
+        </div>
+        <div id="elementContextMenu" style="position:absolute; display:none; background-color: 00ffdd;">
+            <ul>
                 <li>L&ouml;schen</li>
-                <li>&Auml;ndern</li>
+                <li>Text &auml;ndern</li>
             </ul>
         </div>
     </body>
 </html>
+
+
+
+
+
+
+
+
+
+
+
+
+
 
 
 
