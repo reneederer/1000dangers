@@ -2,51 +2,33 @@
 session_start();
 
 require('dbconnection.php');
-//TODO 
-$_SESSION['1000dangersbook_name'] = '1000 Gefahren';
-$_SESSION['team_name'] = $_POST['name'];
-$_SESSION['team_id'] = 1;
-header('Location: pap.php');
-
-
-if(isset($_SESSION['team_name']) && $_SESSION['team_name'] === 'rene')
+if(isset($_POST['btnLogin']))
 {
-}
-
-if(isset($_POST['loginForm']))
-{
-    if(isset($_POST['name']) && login($_POST['name'], $_POST['password'])  === true)
+    $id = getUserId($_POST['name'], $_POST['password']);
+    if($id != -1)
     {
-        $_SESSION['1000dangersbook_name'] = '1000 Gefahren';
-        $_SESSION['team_name'] = $_POST['name'];
-        $_SESSION['team_id'] = 1;
-        header('Location: pap.php');
-    }
-    else
-    {
-        echo "Falsch";
+        $_SESSION['user_id'] = $id;
+        header('Location: welcome.php');
+        die();
     }
 }
 
 
-function login($name, $password)
+function getUserId($name, $password)
 {
     global $conn;
     $statement = $conn->prepare('
-        select id from team where name = :name and password = :password');
+        select id from user where name = :name and password = :password limit 1');
     $statement->bindParam(':name', $name);
     $statement->bindParam(':password', $password);
     $result = $statement->execute();
     $result = $statement->setFetchMode(PDO::FETCH_ASSOC); 
     $rows = $statement->fetchAll();
-    foreach($rows as $row)
+    if(count($rows) == 0)
     {
-        $_SESSION['1000dangersbook_name'] = '1000 Gefahren';
-        $_SESSION['team_id'] = 1;
-        $_SESSION['team_name'] = 'rene';
-        return true;
+        return -1;
     }
-    return false;
+    return (int)$rows[0]['id'];
 }
 
     
@@ -68,10 +50,25 @@ function login($name, $password)
                 </tr>
                 <tr>
                     <td></td>
-                    <td><input type="submit" name="loginForm" value="Abschicken" /></td>
+                    <td><input type="submit" name="btnLogin" value="Abschicken" /></td>
                 </tr>
             </table>
         </form>
-        <?php if(isset($_POST['name'])) echo 'Abgeschickt!'; ?>
     </body>
 </html>
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
