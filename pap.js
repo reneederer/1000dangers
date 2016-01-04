@@ -486,14 +486,14 @@ dangerbook.createPapElement = function(stage, elementData)
                 // prevent multiple connections to and from the same elements
                 if(isAlreadyConnected)
                 {
-                    alert("0");
+                    console.log("0");
                     return false;
                 }
 
                 // prevent self connection
                 if(dragConnectionLine.startContainer === endContainer)
                 {
-                    alert("1");
+                    console.log("1");
                     return false;
                 }
 
@@ -501,27 +501,27 @@ dangerbook.createPapElement = function(stage, elementData)
                 // end-element cannot be the startContainer
                 if(dragConnectionLine.startContainer.type === "End")
                 {
-                    alert("2");
+                    console.log("2");
                     return false;
                 }
 
                 //start-element cannot be the endContainer
                 if(endContainer.type === "Start")
                 {
-                    alert("3");
+                    console.log("3");
                     return false;
                 }
 
                 //start-element and action-elements can have 0 or 1 successors
                 if(dragConnectionLine.startContainer.type === "Start" || dragConnectionLine.startContainer.type === "Action")
                 {
-                    var ds= connections.every(function(currentConnection)
-                            {
-                                return currentConnection.startContainer === dragConnectionLine.startContainer && currentConnection.endContainer !== stage;
-                            });
-                    if(!ds)
+                    var ds= connections.some(function(currentConnection)
+                        {
+                            return currentConnection !== dragConnectionLine && currentConnection.startContainer === dragConnectionLine.startContainer;
+                        })
+                    if(ds)
                     {
-                        alert("4");
+                        console.log("4");
                         return false;
                     }
                 }
