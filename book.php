@@ -1,7 +1,7 @@
 <?php
     session_start();
     require('dbconnection.php');
-    $_SESSION['team_id'] = 1;
+    $_SESSION['user_id'] = 1;
     $_SESSION['1000dangersbook_name'] = '1000 Gefahren';
     $elements = array();
 
@@ -13,14 +13,14 @@ function getFirstElement()
         from papelement
         join 1000dangersbook
           on papelement.1000dangersbook_id = 1000dangersbook.id
-        join team
-           on 1000dangersbook.team_id = :team_id
+        join user
+           on 1000dangersbook.user_id = :user_id
         join paptype
           on papelement.paptype_id = paptype.id
         where
           1000dangersbook_id = (select max(1000dangersbook.id) from 1000dangersbook where 1000dangersbook.name = :1000dangersbook_name)
         and paptype.name = "Start"');
-    $statement->bindParam(':team_id', $_SESSION['team_id']);
+    $statement->bindParam(':user_id', $_SESSION['user_id']);
     $statement->bindParam(':1000dangersbook_name', $_SESSION['1000dangersbook_name']);
     $result = $statement->execute();
     $result = $statement->setFetchMode(PDO::FETCH_ASSOC); 
@@ -36,12 +36,12 @@ function getNextElement($currentId)
     $rows = null;
     while(is_null($rows) || (count($rows) > 0 && $rows[0]['type'] !== 'Condition'))
     {
-        $statement = $conn->prepare('select papelement.id as containerId, paptype.name as type, papelement.title, papelement.text, p1.title as connectiontitle, p1.destination_id as nextId, p1.text as connectiontext
+        $statement = $conn->prepare('select papelement.id, paptype.name as type, papelement.text as text, papelement.title as title, p1.title as connectiontitle, p1.text as connectiontext, p1.destination_id as nextId
             from papelement
             join 1000dangersbook
               on papelement.1000dangersbook_id = 1000dangersbook.id
-            join team
-               on 1000dangersbook.team_id = :team_id
+            join user
+               on 1000dangersbook.user_id = :user_id
             join paptype
               on papelement.paptype_id = paptype.id
             left join papconnection p1
@@ -49,8 +49,9 @@ function getNextElement($currentId)
               and :currentId = p1.source_id
               and papelement.1000dangersbook_id = p1.1000dangersbook_id
             where
+              papelement.id = :currentId and
               papelement.1000dangersbook_id = (select max(1000dangersbook.id) from 1000dangersbook where 1000dangersbook.name = :1000dangersbook_name)');
-        $statement->bindParam(':team_id', $_SESSION['team_id']);
+        $statement->bindParam(':user_id', $_SESSION['user_id']);
         $statement->bindParam(':currentId', $currentId);
         $statement->bindParam(':1000dangersbook_name', $_SESSION['1000dangersbook_name']);
         $result = $statement->execute();
@@ -58,12 +59,10 @@ function getNextElement($currentId)
         $rows = $statement->fetchAll();
         if(count($rows) === 0)
         { 
-            var_dump($text);
-            return array('containerId' => -1, 'text' => $text);
+            return array('nextId' => -1, 'text' => $text);
             die('No successor!');
         }
         $text .= '<p>' . $rows[0]['text'] . '</p>';
-        var_dump($text);
         if($rows[0]['type'] === 'Condition')
         {
             $text .= '<br /><br /><p><strong>Jetzt musst du dich Entscheiden:</strong></p>';
@@ -75,7 +74,6 @@ function getNextElement($currentId)
         }
         if(is_null($rows[0]['nextId']))
         {
-            var_dump($text);
             break;
         }
         if(in_array($rows[0]['nextId'], $elements))
@@ -87,7 +85,7 @@ function getNextElement($currentId)
         $currentId = $rows[0]['nextId']; 
 
     }
-    return array('containerId' => $rows[0]['containerId'], 'text' => $text);
+    return array('nextId' => $rows[0]['nextId'], 'text' => $text);
 }
 
 ?>
@@ -96,9 +94,9 @@ function getNextElement($currentId)
         <title>Tausend-Gefahren-Buch</title>
         <style>
             body
-{
-background-color: #ffffff;
-}
+            {
+                background-color: #ffffff;
+            }
             h1
             {
                 text-align: center;
@@ -120,14 +118,14 @@ background-color: #ffffff;
                 margin-right: 40px;
             }
             a:link{
-font-weight: bold;
-color:#9d890a;
-text-decoration:none;
-}
+                font-weight: bold;
+                color:#3d39da;
+                text-decoration:none;
+            }
             a:active{color:inherit}
             a:visited{
-color:#3d39da;
-}
+                color:#3d39da;
+            }
             a:hover{color:#0d09fa}
         </style>
     </head>
