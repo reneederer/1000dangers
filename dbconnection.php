@@ -58,6 +58,10 @@ function savePapElements($papElements)
     $statement->bindParam(':user_id', $_SESSION['user_id']);
     $statement->execute();
 
+    if(is_null($papElements))
+    {
+        return;
+    }
     foreach($papElements as $papElement)
     {
         $statement = $conn->prepare('
@@ -80,6 +84,10 @@ function savePapConnections($papConnections)
 {
     //TODO  savePapElements() muss immer vorher aufgerufen werden!!
     global $conn;
+    if(is_null($papConnections))
+    {
+        return;
+    }
     foreach($papConnections as $papConnection)
     {
         $statement = $conn->prepare('
