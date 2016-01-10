@@ -8,9 +8,6 @@ var choices = [];
 var stage = null;
 
 
-
-
-
 dangerbook.init = function()
 {
     var messageDiv = document.getElementById("messageDiv");
@@ -32,8 +29,10 @@ dangerbook.init = function()
                             return (previousChild.containerId > currentChild.containerId)
                                 ? previousChild
                                 : currentChild;
-                        });
-            var containerId = containerWithLargestId ? containerWithLargestId.containerId + 1 : 1;
+                        }, {containerId:0});
+            var containerId = containerWithLargestId.containerId + 1;
+            var rect = canvas.getBoundingClientRect();
+            alert(containerId);
             switch(item)
             {
                 case "Aktion":
@@ -50,7 +49,7 @@ dangerbook.init = function()
                     break;
             }
             canvasContextMenu.style.display = "None";
-            dangerbook.createPapElement(stage, {containerId:containerId, x:evt.pageX, y:evt.pageY, title:type, text:"Dieser Text wird sp&auml;ter angezeigt", type:type});
+            dangerbook.createPapElement(stage, {containerId:containerId, x:evt.pageX-rect.left, y:evt.pageY-(rect.top+window.scrollY), title:type, text:"Dieser Text wird spter angezeigt", type:type});
             stage.update();
         }
     );
@@ -111,6 +110,7 @@ dangerbook.load = function(stage)
     {
         if(xmlhttp.readyState === XMLHttpRequest.DONE)
         {
+            alert(xmlhttp.responseText);
             var loaded = new Object(JSON.parse(xmlhttp.responseText));
             var papText = document.getElementById("papText");
             var papElements = loaded.papElements;
@@ -124,7 +124,7 @@ dangerbook.load = function(stage)
 
             papConnections.forEach(function(currentPapConnection){dangerbook.createPapConnection(stage, currentPapConnection);});
             //TODO uncomment
-            //window.addEventListener('beforeunload', function(){dangerbook.save(stage);});
+            window.addEventListener('beforeunload', function(){dangerbook.save(stage);});
             dragConnectionLine = dangerbook.createDragConnectionLine(stage);
             stage.addChild(dragConnectionLine);
             stage.addChild(dragConnectionLine.title);
@@ -205,8 +205,8 @@ dangerbook.save = function(stage)
     {
         if (xmlhttp.readyState === XMLHttpRequest.DONE)
         {
+            alert(xmlhttp.responseText);
             messageDiv.innerHTML = "Gespeichert!";
-            debugger;
         }
     }
     xmlhttp.send(pap_upload);
