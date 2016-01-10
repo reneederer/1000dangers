@@ -7,11 +7,80 @@ var options = {font: "14px Arial"};
 var choices = [];
 var stage = null;
 
+
+
+
+
 dangerbook.init = function()
 {
+    var messageDiv = document.getElementById("messageDiv");
+    var canvasContextMenu = document.getElementById("canvasContextMenu");
+    messageDiv.innerHTML = "Neue Elemente erstellen mit Rechtsklick.";
     dangerbook.setCanvasSize();
     stage = new createjs.Stage("canvas");
+    stage.mouseEnabled = true;
     dangerbook.load(stage);
+    canvasContextMenu.addEventListener("mouseup",
+        function(evt)
+        {
+            var item = dangerbook.getChosenItem(evt);
+            var type = null;
+            var containerWithLargestId = stage.children
+                .filter(dangerbook.isAPapElement)
+                .reduce(function(previousChild, currentChild)
+                        {
+                            return (previousChild.containerId > currentChild.containerId)
+                                ? previousChild
+                                : currentChild;
+                        });
+            var containerId = containerWithLargestId ? containerWithLargestId.containerId + 1 : 1;
+            switch(item)
+            {
+                case "Aktion":
+                   type = "Action";
+                   break;
+                case "Bedingung":
+                   type = "Condition";
+                   break;
+                case "Start":
+                    type = "Start";
+                    break;
+                case "Ende":
+                    type = "End";
+                    break;
+            }
+            canvasContextMenu.style.display = "None";
+            dangerbook.createPapElement(stage, {containerId:containerId, x:evt.pageX, y:evt.pageY, title:type, text:"Dieser Text wird sp&auml;ter angezeigt", type:type});
+            stage.update();
+        }
+    );
+    stage.on("stagemousedown", function(evt){
+        if(evt.nativeEvent.button == 2 && stage.getObjectUnderPoint(evt.stageX, evt.stageY) == null)
+        {
+            canvasContextMenu.style.left = evt.nativeEvent.pageX;
+            canvasContextMenu.style.top = evt.nativeEvent.pageY;
+            canvasContextMenu.style.display = "inline";
+        }
+
+            
+    });
+
+    //save when Ctrl-s is pressed
+    window.addEventListener('keydown', function(event) {
+        if ((event.ctrlKey || event.metaKey)
+            && String.fromCharCode(event.which).toLowerCase() == 's')
+        {
+            messageDiv.innerHTML = "Speichere...";
+            event.preventDefault();
+            dangerbook.save(stage);
+        }
+    });
+}
+
+
+dangerbook.getChosenItem = function(evt)
+{
+    return evt.target.innerHTML;
 }
 
 dangerbook.papTextChanged = function(evt)
@@ -19,6 +88,11 @@ dangerbook.papTextChanged = function(evt)
     if(!selectedContainer) { return; }
     selectedContainer.text = document.getElementById("papText").value;
 }
+
+
+
+
+
 
 
 dangerbook.setCanvasSize = function()
@@ -30,39 +104,38 @@ dangerbook.setCanvasSize = function()
 
 dangerbook.load = function(stage)
 {
-    $.post("test.php",
-        {action: "load"},
-        function(data, status)
+    var xmlhttp = new XMLHttpRequest();
+    xmlhttp.open("POST", "test.php");
+    xmlhttp.setRequestHeader("Content-Type", "application/x-www-form-urlencoded");
+    xmlhttp.onreadystatechange = function()
+    {
+        if(xmlhttp.readyState === XMLHttpRequest.DONE)
         {
-            var loaded = new Object(JSON.parse(data));
-            options = loaded.options;
+            var loaded = new Object(JSON.parse(xmlhttp.responseText));
             var papText = document.getElementById("papText");
+            var papElements = loaded.papElements;
+            var papConnections = loaded.papConnections;
+
+            options = loaded.options;
             papText.addEventListener("input", function(evt){dangerbook.papTextChanged(evt);});
             papText.style.font = options.font;
 
-            var papElements = loaded.papElements;
             papElements.forEach(function(currentPapElement){dangerbook.createPapElement(stage, currentPapElement);});
 
-            var papConnections = loaded.papConnections;
             papConnections.forEach(function(currentPapConnection){dangerbook.createPapConnection(stage, currentPapConnection);});
-            $(window).on('beforeunload', function(){dangerbook.save(stage);});
+            //TODO uncomment
+            //window.addEventListener('beforeunload', function(){dangerbook.save(stage);});
             dragConnectionLine = dangerbook.createDragConnectionLine(stage);
             stage.addChild(dragConnectionLine);
             stage.addChild(dragConnectionLine.title);
             stage.addChild(dragConnectionLine.border);
             var startElement = stage.children.find(function(el){return el.type == "Start";});
             if(startElement) dangerbook.nextBookText(startElement.containerId);
-            $(window).bind('keydown', function(event) {
-                    if (event.ctrlKey || event.metaKey
-                            && String.fromCharCode(event.which).toLowerCase() == 's')
-                    {
-                            event.preventDefault();
-                            dangerbook.save(stage);
-                    }
-            });
-            //canvas.onmousedown = function(evt){alert("test" + evt.target);};
             stage.update();
-        });
+        }
+    };
+    xmlhttp.send("action=load");
+
 }
 
 
@@ -71,9 +144,11 @@ dangerbook.nextBookText = function(elementId, nextElementId)
     choices.push(elementId);
     //alert(choices.join(", "));
     var bookDiv = document.getElementById("book");
-    var el = nextElementId ? stage.children.find(function(e){return e.containerId === nextElementId;})
+    var el = nextElementId
+        ? stage.children.find(function(e){return e.containerId === nextElementId;})
         : dangerbook.getElement(stage, elementId);
     var counter = 0;
+
     
     for(var i = 0; i < 1000 && el; ++i)
     {
@@ -99,8 +174,6 @@ dangerbook.getElement = function(stage, elementId)
 
 dangerbook.save = function(stage)
 {
-    //console.log("not saving");
-    //return;
     var papElements = [];
     stage.children.filter(dangerbook.isAPapElement).forEach(function(currentContainer)
     {
@@ -115,25 +188,34 @@ dangerbook.save = function(stage)
     stage.children.filter(dangerbook.isAConnection).forEach(function(currentConnection)
     {
         papConnections.push({source_id:currentConnection.startContainer.containerId,
-                             destination_id: currentConnection.endContainer.containerId,
-                             source_offset_x: currentConnection.startX,
-                             source_offset_y: currentConnection.startY,
-                             destination_offset_x: currentConnection.endX,
-                             destination_offset_y: currentConnection.endY,
-                             title: currentConnection.title.text});
+                         destination_id: currentConnection.endContainer.containerId,
+                         source_offset_x: currentConnection.startX,
+                         source_offset_y: currentConnection.startY,
+                         destination_offset_x: currentConnection.endX,
+                         destination_offset_y: currentConnection.endY,
+                         title: currentConnection.title.text});
     });
     var paps = {"elements" : papElements, "connections" : papConnections};
-    $.post("test.php",
-        { action: "save",
-          pap: JSON.stringify(paps) },
-        function(data, status){;});
 
+    var pap_upload = "action=save&pap=" + JSON.stringify(paps);
+    var xmlhttp = new XMLHttpRequest();   // new HttpRequest instance 
+    xmlhttp.open("POST", "test.php");
+    xmlhttp.setRequestHeader("Content-Type", "application/x-www-form-urlencoded");
+    xmlhttp.onreadystatechange = function()
+    {
+        if (xmlhttp.readyState === XMLHttpRequest.DONE)
+        {
+            messageDiv.innerHTML = "Gespeichert!";
+            debugger;
+        }
+    }
+    xmlhttp.send(pap_upload);
 }
 
 
 dangerbook.isAConnection = function(element)
 {
-    return element.startContainer && element.endContainer && element != dragConnectionLine;
+    return element.startContainer && element.endContainer && element !== dragConnectionLine;
 }
 
 
@@ -141,6 +223,7 @@ dangerbook.isAPapElement = function(element)
 {
     return (element.containerId) ? true : false;
 }
+
 
 
 dangerbook.createDragConnectionLine = function(stage)
@@ -207,6 +290,7 @@ dangerbook.drawArrow = function(stage, line)
 
     var b = line.title.getBounds();
     if(!b){
+        alert("!b");
         stage.update();
         return;
     }
@@ -431,7 +515,7 @@ dangerbook.createPapElement = function(stage, elementData)
     }
 
     container.on("mousedown", function(evt){
-        var contextMenu = document.getElementById("contextMenu");
+        var elementContextMenu = document.getElementById("elementContextMenu");
         if(evt.nativeEvent.button == 0) // left down
         {
             document.getElementById("papText").value = container.text;
@@ -439,13 +523,13 @@ dangerbook.createPapElement = function(stage, elementData)
             dangerbook.bringToFront(stage, container);
             dangerbook.selectContainer(stage, container);
             startDrag(container, evt.stageX, evt.stageY);
-            contextMenu.style.display = "hidden";
+            elementContextMenu.style.display = "hidden";
         }
-        else if(evt.nativeEvent.button === 2) // right button down
+        else
         {
-            contextMenu.style.left = evt.nativeEvent.pageX; 
-            contextMenu.style.top = evt.nativeEvent.pageY; 
-            contextMenu.style.display = "inline";
+            elementContextMenu.style.left = evt.nativeEvent.pageX; 
+            elementContextMenu.style.top = evt.nativeEvent.pageY; 
+            elementContextMenu.style.display = "inline";
         }
     });
 
@@ -467,7 +551,7 @@ dangerbook.createPapElement = function(stage, elementData)
         }
     });
 
-    container.on("pressup", function(evt) {
+    container.on("pressup", function(evt){
         var endContainer = stage.children.find(function(currentContainer)
                 {
                     var pt = currentContainer.globalToLocal(evt.stageX, evt.stageY);
@@ -477,6 +561,11 @@ dangerbook.createPapElement = function(stage, elementData)
 
         var canConnect = function()
             {
+                if(!dangerbook.isAPapElement(dragConnectionLine.startContainer))
+                {
+                    return false;
+                }
+                var messageDiv = document.getElementById("messageDiv");
                 var connections = stage.children.filter(dangerbook.isAConnection);
                 var isAlreadyConnected = connections.some(function(currentConnection)
                 {
@@ -486,14 +575,16 @@ dangerbook.createPapElement = function(stage, elementData)
                 // prevent multiple connections to and from the same elements
                 if(isAlreadyConnected)
                 {
-                    console.log("0");
+                    console.log("Die Elemente sind bereits verbunden.");
+                    messageDiv.innerHTML = "Die Elemente sind bereits verbunden.";
                     return false;
                 }
 
                 // prevent self connection
                 if(dragConnectionLine.startContainer === endContainer)
                 {
-                    console.log("1");
+                    console.log("Verbindung mit sich selbst ist nicht erlaubt");
+                    messageDiv.innerHTML = "Verbindung mit sich selbst ist nicht erlaubt.";
                     return false;
                 }
 
@@ -501,30 +592,34 @@ dangerbook.createPapElement = function(stage, elementData)
                 // end-element cannot be the startContainer
                 if(dragConnectionLine.startContainer.type === "End")
                 {
-                    console.log("2");
+                    console.log("Das \"Ende-Element\" kann kein Verbindungsbeginn sein.");
+                    messageDiv.innerHTML = "Das \"Ende-Element\" kann kein Verbindungsbeginn sein.";
                     return false;
                 }
 
                 //start-element cannot be the endContainer
                 if(endContainer.type === "Start")
                 {
-                    console.log("3");
+                    console.log("Das \"Start-Element\" kann kein Verbindungsende sein.");
+                    messageDiv.innerHTML = "Das \"Start-Element\" kann kein Verbindungsende sein.";
                     return false;
                 }
 
                 //start-element and action-elements can have 0 or 1 successors
                 if(dragConnectionLine.startContainer.type === "Start" || dragConnectionLine.startContainer.type === "Action")
                 {
-                    var ds= connections.some(function(currentConnection)
+                    var hasSuccessor = connections.some(function(currentConnection)
                         {
                             return currentConnection !== dragConnectionLine && currentConnection.startContainer === dragConnectionLine.startContainer;
                         })
-                    if(ds)
+                    if(hasSuccessor)
                     {
-                        console.log("4");
+                        console.log("Start-Element und Aktions-Elemente k&ouml;nnen h&ouml;chstens einen Nachfolger haben.");
+                        messageDiv.innerHTML = "Start-Element und Aktions-Elemente k&ouml;nnen h&ouml;chstens einen Nachfolger haben.";
                         return false;
                     }
                 }
+                messageDiv.innerHTML = "Neue Verbindung erstellt.";
                 return true;
            };
         if(endContainer && canConnect())
@@ -610,9 +705,8 @@ return dangerbook;
 
 QUnit.test("createContainer(elementData)", function(assert)
 {
-    alert("dangerbook: " + window.dangerbook);
     var elementData = {"containerId":"3","x":"180","y":"400","type":"Action","title":"Insel gestrandet","text":"Du hast Schiffbruch erlitten."};
-    container = dangerbook.createContainer(elementData);
+    var container = dangerbook.createContainer(elementData);
     assert.ok(container.containerId === 3, "Passed");
     assert.ok(container.y === 400, "Passed");
     assert.ok(container.x === 180, "Passed");
