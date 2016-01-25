@@ -2,68 +2,63 @@
 
 (function(elementModule)
 {
-
 elementModule.containerDragOffset = null;
 
 
 elementModule.getContainerBounds = function(title, type, innerPadding)
 {
-    var titleBounds  = title.getBounds();
-    var bounds = {};
-    bounds.width = titleBounds.width + 2*innerPadding + 2*pap.options.borderSize;
-    bounds.height = titleBounds.height + 2*innerPadding + 2*pap.options.borderSize;
+    var titleBounds = title.getBounds() || new createjs.Rectangle(0, 0, 0, 0); //this is necessary, otherwise an exception is thrown when title.text == ""
+
+    var bounds =
+    {
+        width:  titleBounds.width + 2*innerPadding + 2*pap.options.borderSize,
+        height: titleBounds.height + 2*innerPadding + 2*pap.options.borderSize
+    };
 
     var outer = 0;
     if(type === "Condition")
     {
-        var innerS = {x:Math.cos(Math.PI/4) * (innerPadding), y:Math.sin(Math.PI/4) * (innerPadding)};
-        bounds.width = titleBounds.width + 2*(innerS.x + innerS.y);
-        bounds.height = bounds.width;
-        var outerS = {x:Math.cos(Math.PI/4) * (pap.options.borderSize) , y:Math.sin(Math.PI/4) * (pap.options.borderSize)};
-        outer = outerS.x + outerS.y;
-        bounds.width += 2*outer;
-        bounds.height = bounds.width;
+        var innerS     = {x:Math.cos(Math.PI/4) * (innerPadding), y:Math.sin(Math.PI/4) * (innerPadding)};
+        bounds.width   = titleBounds.width + 2*(innerS.x + innerS.y);
+        bounds.height  = bounds.width;
+        var outerS     = {x:Math.cos(Math.PI/4) * (pap.options.borderSize) , y:Math.sin(Math.PI/4) * (pap.options.borderSize)};
+        outer          = outerS.x + outerS.y;
+
+        bounds.width  += 2*outer;
+        bounds.height  = bounds.width;
     }
     return {bounds:bounds, titleBounds:titleBounds, outer:outer};
 }
 
 
-elementModule.getBorder = function(container)
+elementModule.getElementShape = function(element, shapeName)
 {
-    return container.getChildAt(0);
-}
-
-
-elementModule.getInside = function(container)
-{
-    return container.getChildAt(1);
-}
-
-
-elementModule.getTitle = function(container)
-{
-    return container.getChildAt(2);
+    return element.container.children.find(
+        function(shape){
+            return shape.name === shapeName;
+        });
 }
 
 
 elementModule.getContainer = function(shape)
 {
+    // TODO assert that shape.parent instanceof createjs.Container
     return shape.parent;
 }
 
 
 elementModule.paint = function(element)
 {
-    var container = element.container;
-    var border = elementModule.getBorder(container);
-    var inside = elementModule.getInside(container);
-    var title =  elementModule.getTitle(container);
-    title.font = pap.options.font;
+    var container       = element.container;
+    var border          = elementModule.getElementShape(element, "border");
+    var inside          = elementModule.getElementShape(element, "inside");
+    var title           = elementModule.getElementShape(element, "title");
+    title.font          = pap.options.font;
     var containerBounds = elementModule.getContainerBounds(title, element.type, pap.options.innerPadding);
-    container.width = containerBounds.bounds.width;
-    container.height = containerBounds.bounds.height;
-    title.x = containerBounds.bounds.width/2 - containerBounds.titleBounds.width/2;
-    title.y =  containerBounds.bounds.height/2 - containerBounds.titleBounds.height/2;
+    container.width     = containerBounds.bounds.width;
+    container.height    = containerBounds.bounds.height;
+    title.x             = containerBounds.bounds.width/2 - containerBounds.titleBounds.width/2;
+    title.y             = containerBounds.bounds.height/2 - containerBounds.titleBounds.height/2;
     border.graphics.clear();
     inside.graphics.clear();
 
@@ -130,16 +125,17 @@ elementModule.paint = function(element)
 
 elementModule.createContainer = function(element, elementData)
 {
-    var title = new createjs.Text(elementData.title, pap.options.font, "#040000");
-
-    title.titleBaseline = "top";
-    title.on("dblclick", function(){pap.changeTitle(title)});
-
-    var border = new createjs.Shape();
-    var inside = new createjs.Shape();
     var container = new createjs.Container();
-    container.x = +elementData.x;
-    container.y = +elementData.y;
+    var title     = new createjs.Text(elementData.title, pap.options.font, "#040000");
+    var border    = new createjs.Shape();
+    var inside    = new createjs.Shape();
+
+    title.name = "title";
+    border.name = "border";
+    inside.name = "inside";
+    title.titleBaseline = "top";
+    container.x   = +elementData.x;
+    container.y   = +elementData.y;
 
 
     /*
@@ -151,9 +147,8 @@ elementModule.createContainer = function(element, elementData)
     container.addChild(inside);
     container.addChild(title);
 
-    element.text = elementData.text;
-    element.title = elementData.title;
-    element.type = elementData.type;
+    element.text      = elementData.text;
+    element.type      = elementData.type;
     element.container = container;
 
     pap.elements.push(element);
@@ -193,19 +188,17 @@ elementModule.clearGraphics = function(element)
 
 elementModule.createPapElement = function(elementData)
 {
-    var element = {};
+    var element       = {};
     element.elementId = +elementData.elementId;
-    element.text = elementData.text;
-    element.type = elementData.type;
-    element.title = elementData.title;
-    element.type = elementData.type;
+    element.text      = elementData.text;
+    element.type      = elementData.type;
+    element.type      = elementData.type;
 
     var container = elementModule.createContainer(element, elementData);
-    element.container = container;
 
-    var elementInside = elementModule.getInside(element.container);
-    var elementBorder = elementModule.getBorder(element.container);
-    var elementTitle = elementModule.getTitle(element.container);
+    var elementInside                 = elementModule.getElementShape(element, "inside");
+    var elementBorder                 = elementModule.getElementShape(element, "border");
+    var elementTitle                  = elementModule.getElementShape(element, "title");
     elementModule.containerDragOffset = {x:0, y:0};
 
 
@@ -213,23 +206,22 @@ elementModule.createPapElement = function(elementData)
         var elementContextMenu = document.getElementById("elementContextMenu");
         if(evt.nativeEvent.button === 0) // left down
         {
-            elementModule.containerDragOffset.x = evt.stageX - container.x;
-            elementModule.containerDragOffset.y = evt.stageY - container.y;
-            document.getElementById("papText").value = element.text;
-            document.getElementById("papTitle").value = element.title;
+            elementModule.containerDragOffset.x          = evt.stageX - container.x;
+            elementModule.containerDragOffset.y          = evt.stageY - container.y;
+            document.getElementById("txaPapText").value  = element.text;
+            document.getElementById("txtPapTitle").value = elementModule.getElementShape(element, "title").text;
             pap.bringToFront(container);
             pap.selectSymbol(element);
 
-            elementContextMenu.style.display = "hidden";
-            pap.dragArrow.startElement = element
-            pap.dragArrow.startElement.container = container;
-            pap.dragArrow.startX = evt.stageX - container.x;
-            pap.dragArrow.startY = evt.stageY - container.y;
+            elementContextMenu.style.display     = "hidden";
+            pap.dragArrow.startElement           = element
+            pap.dragArrow.startX                 = evt.stageX - container.x;
+            pap.dragArrow.startY                 = evt.stageY - container.y;
         }
         else
         {
-            elementContextMenu.style.left = evt.nativeEvent.pageX; 
-            elementContextMenu.style.top = evt.nativeEvent.pageY; 
+            elementContextMenu.style.left    = evt.nativeEvent.pageX;
+            elementContextMenu.style.top     = evt.nativeEvent.pageY;
             elementContextMenu.style.display = "inline";
         }
     });
@@ -345,15 +337,13 @@ elementModule.createPapElement = function(elementData)
            };
 
         var connectableStatus = canConnect();
-        messageDiv.innerHTML = connectableStatus.message;
+        messageDiv.innerHTML  = connectableStatus.message;
 
         if(endElement && connectableStatus.connectable)
         {
             pap.dragArrow.endElement = endElement;
-            pap.dragArrow.endX = evt.stageX - endElement.container.x;
-            pap.dragArrow.endY = evt.stageY - endElement.container.y;
-            pap.getArrowLine(pap.dragArrow).on("dblclick", function(){pap.changeTitle(pap.dragArrow)});
-            pap.getArrowBorder(pap.dragArrow).on("dblclick", function(){pap.changeTitle(pap.dragArrow)});
+            pap.dragArrow.endX       = evt.stageX - endElement.container.x;
+            pap.dragArrow.endY       = evt.stageY - endElement.container.y;
             pap.connections.push(pap.dragArrow);
 
             pap.dragArrow = pap.createArrow();
@@ -363,13 +353,22 @@ elementModule.createPapElement = function(elementData)
         pap.bringToFront(container);
         pap.stage.update();
     });
-    pap.stage.addChild(container);
+    pap.stage.addChild(element.container);
     return element;
 }
 
 
 elementModule.calculateArrowPoints = function(arrow)
 {
+    //TODO This is a little hacky perhaps
+    if(!arrow.endElement.container)
+    {
+        arrow.endElement.container = {x:0, y:0};
+    }
+    if(!arrow.startElement.container)
+    {
+        arrow.startElement.container = {x:0, y:0};
+    }
     var startX = +arrow.startX + +arrow.startElement.container.x;
     var startY = +arrow.startY + +arrow.startElement.container.y;
     var endX   = +arrow.endX   + +arrow.endElement.container.x;
@@ -381,22 +380,24 @@ elementModule.calculateArrowPoints = function(arrow)
         endX += 2;
         endY += 2;
     }
-    var length = 40;
-    var angle = 20;
-    var dx = endX - startX;
-    var dy = endY - startY;
-    var slope = dy/dx;
+    var length               = 40;
+    var angle                = 20;
+    var dx                   = endX - startX;
+    var dy                   = endY - startY;
+    var slope                = dy/dx;
     if(endX < startX){ angle = 180 - angle;}
-    var x1 = endX + length * Math.cos(-(180-angle) * (Math.PI/180) + Math.atan(slope));
-    var y1 = endY + length * Math.sin(-(180-angle) * (Math.PI/180) + Math.atan(slope));
-    var x2 = endX + length * Math.cos((180-angle) * (Math.PI/180) + Math.atan(slope));
-    var y2 = endY + length * Math.sin((180-angle) * (Math.PI/180) + Math.atan(slope));
+    var x1                   = endX + length * Math.cos(-(180-angle) * (Math.PI/180) + Math.atan(slope));
+    var y1                   = endY + length * Math.sin(-(180-angle) * (Math.PI/180) + Math.atan(slope));
+    var x2                   = endX + length * Math.cos((180-angle) * (Math.PI/180) + Math.atan(slope));
+    var y2                   = endY + length * Math.sin((180-angle) * (Math.PI/180) + Math.atan(slope));
 
     var distance = 4+length/Math.sin(90*Math.PI/180) * Math.sin(angle*Math.PI/180);
-    var a = {x:startX + distance*Math.cos(Math.atan(slope)+Math.PI/2), y:startY + distance*Math.sin(Math.atan(slope)+Math.PI/2)}; 
-    var b = {x:startX + distance*Math.cos(Math.atan(slope)-Math.PI/2), y:startY + distance*Math.sin(Math.atan(slope)-Math.PI/2)}; 
-    var c = {x:endX + distance*Math.cos(Math.atan(slope)-Math.PI/2), y:endY + distance*Math.sin(Math.atan(slope)-Math.PI/2)}; 
-    var d = {x:endX + distance*Math.cos(Math.atan(slope) + Math.PI/2), y:endY + distance*Math.sin(Math.atan(slope) + Math.PI/2)}; 
+    // a, b, c and d are the edges of
+    // the selection rectangle around the arrow
+    var a        = {x:startX + distance*Math.cos(Math.atan(slope)+Math.PI/2), y:startY + distance*Math.sin(Math.atan(slope)+Math.PI/2)};
+    var b        = {x:startX + distance*Math.cos(Math.atan(slope)-Math.PI/2), y:startY + distance*Math.sin(Math.atan(slope)-Math.PI/2)};
+    var c        = {x:endX + distance*Math.cos(Math.atan(slope)-Math.PI/2), y:endY + distance*Math.sin(Math.atan(slope)-Math.PI/2)};
+    var d        = {x:endX + distance*Math.cos(Math.atan(slope) + Math.PI/2), y:endY + distance*Math.sin(Math.atan(slope) + Math.PI/2)};
 
     return {degrees:180/Math.PI * Math.atan(slope), startX:startX, startY:startY, endX:endX, endY:endY, x1:x1, y1:y1, x2:x2, y2:y2, a:a, b:b, c:c, d:d};
 }
